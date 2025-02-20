@@ -1,18 +1,16 @@
 // server.js
 const express = require('express');
-const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 const mongoose = require('mongoose');
-const shortid = require('shortid');
+const path = require('path');
 
-// Connect to MongoDB (adjust connection string as needed)
-mongoose.connect('mongodb+srv://user:admin@cluster0.lgrfo.mongodb.net', {
+// Connect to MongoDB (Atlas or local)
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/chatroom', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
 
-// Define a message schema. Each message is associated with a room.
 const messageSchema = new mongoose.Schema({
   room: String,
   text: String,
@@ -22,19 +20,33 @@ const messageSchema = new mongoose.Schema({
 });
 const Message = mongoose.model('Message', messageSchema);
 
-// Serve static files from public folder
-app.use(express.static('public'));
+// Express setup
+const app = express();
+const httpServer = createServer(app);
 
-// When a client connects via Socket.IO:
+// Serve static files from 'public'
+app.use(express.static(path.join(__dirname, 'public')));
+
+// If user visits '/', serve index.html from public
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Socket.IO setup
+const io = new Server(httpServer, {
+  // Potentially set cors options here if needed
+});
+
+// Handle Socket.IO connections
 io.on('connection', (socket) => {
-  console.log('A user connected');
+  console.log('A user connected.');
 
-  // Expect the client to join a room
+  // Listen for joinRoom
   socket.on('joinRoom', (room) => {
     socket.join(room);
     console.log(`User joined room: ${room}`);
 
-    // Load messages for this room from MongoDB and send to client
+    // Load existing messages
     Message.find({ room })
       .then((messages) => {
         socket.emit('loadMessages', messages);
@@ -42,7 +54,7 @@ io.on('connection', (socket) => {
       .catch((err) => console.error(err));
   });
 
-  // Listen for new messages
+  // newMessage
   socket.on('newMessage', (data) => {
     const message = new Message({
       room: data.room,
@@ -50,22 +62,23 @@ io.on('connection', (socket) => {
       x: data.x,
       y: data.y,
     });
-    message.save()
+    message
+      .save()
       .then((savedMsg) => {
-        // Emit only to the room so that only those clients get the update
         io.to(data.room).emit('newMessage', savedMsg);
       })
       .catch((err) => console.error(err));
   });
 
-  // Listen for drag/update events
+  // updatePosition
   socket.on('updatePosition', (data) => {
-    // Broadcast the updated position only to those in the same room
     io.to(data.room).emit('updatePosition', data);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('A user disconnected.');
   });
 });
 
-// Listen on port 3000
-http.listen(3000, () => {
-  console.log('Server listening on port 3000');
-});
+// For Vercel serverless:
+module.exports = httpServer;

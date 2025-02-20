@@ -1,21 +1,20 @@
 // client.js
 const socket = io();
 
-// Read the room ID from query string, e.g. room.html?room=abc123
+// Grab the room from URL
 const urlParams = new URLSearchParams(window.location.search);
 const roomId = urlParams.get('room');
 if (!roomId) {
-  alert('No room specified. Redirecting to lobby.');
+  // If no room, go back to index
   window.location.href = '/';
 }
 
-// Display the room ID on the page
 document.getElementById('roomIdDisplay').textContent = "Room ID: " + roomId;
 
-// Join the room on the server
+// Join the room
 socket.emit('joinRoom', roomId);
 
-// Matter.js modules
+// Matter.js Setup
 const {
   Engine,
   Render,
@@ -29,130 +28,145 @@ const {
   Common,
 } = Matter;
 
-// Create the physics engine and world
 const engine = Engine.create();
 const world = engine.world;
 
-// Fixed canvas dimensions
-const canvasWidth = 1024;
-const canvasHeight = 768;
+// Lower gravity a bit for a lighter feel
+engine.world.gravity.y = 0.7;
 
-// Adjust gravity and other parameters for a smooth drop
-engine.world.gravity.y = 1.0;
-
-// Setup canvas and rendering
+// Canvas
 const canvas = document.getElementById('world');
 const render = Render.create({
-  canvas: canvas,
-  engine: engine,
+  canvas,
+  engine,
   options: {
-    width: canvasWidth,
-    height: canvasHeight,
+    width: 1024,
+    height: 768,
     wireframes: false,
     background: '#181818',
   },
 });
-
 Render.run(render);
 const runner = Runner.create();
 Runner.run(runner, engine);
 
-// Create boundary walls (left, right, top, bottom)
+// Boundaries
 const thickness = 50;
 const boundaries = [
-  // Top
-  Bodies.rectangle(canvasWidth / 2, -thickness / 2, canvasWidth, thickness, { isStatic: true }),
-  // Bottom
-  Bodies.rectangle(canvasWidth / 2, canvasHeight + thickness / 2, canvasWidth, thickness, { isStatic: true }),
-  // Left
-  Bodies.rectangle(-thickness / 2, canvasHeight / 2, thickness, canvasHeight, { isStatic: true }),
-  // Right
-  Bodies.rectangle(canvasWidth + thickness / 2, canvasHeight / 2, thickness, canvasHeight, { isStatic: true }),
+  Bodies.rectangle(512, -thickness / 2, 1024, thickness, { isStatic: true }),
+  Bodies.rectangle(512, 768 + thickness / 2, 1024, thickness, { isStatic: true }),
+  Bodies.rectangle(-thickness / 2, 384, thickness, 768, { isStatic: true }),
+  Bodies.rectangle(1024 + thickness / 2, 384, thickness, 768, { isStatic: true }),
 ];
 Composite.add(world, boundaries);
 
-// Enable mouse control for dragging bodies
+// Mouse constraint (works on mobile too)
 const mouse = Mouse.create(render.canvas);
-const mouseConstraint = MouseConstraint.create(engine, { mouse: mouse });
+const mouseConstraint = MouseConstraint.create(engine, { mouse });
 Composite.add(world, mouseConstraint);
 
-// Container to track created blocks by their message id
+// Store blocks by ID
 const blocks = {};
 
-// Utility to create a message block with smooth physics and rounded corners
-function createMessageBlock(message) {
-  // Set a minimum width based on text length
-  const width = Math.max(100, message.text.length * 10);
-  const height = 50;
-  // Starting position from chat container location
+// Helper: measure multi-line text to size blocks
+function getMaxLineWidth(ctx, lines) {
+  let max = 0;
+  lines.forEach(line => {
+    const w = ctx.measureText(line).width;
+    if (w > max) max = w;
+  });
+  return max;
+}
+
+// Create block
+function createMessageBlock(msg) {
+  const lines = msg.text.split('\n');
+  const tmpCanvas = document.createElement('canvas');
+  const tmpCtx = tmpCanvas.getContext('2d');
+  tmpCtx.font = '16px Arial';
+  const blockWidth = Math.max(120, getMaxLineWidth(tmpCtx, lines) + 20);
+  const blockHeight = Math.max(50, lines.length * 20 + 10);
+
+  // Position exactly at the chat box location
+  // We'll use the chat container's bottom-left as the spawn point
   const chatRect = document.getElementById('chat').getBoundingClientRect();
-  const x = message.x || chatRect.left + chatRect.width / 2;
-  const y = message.y || chatRect.bottom;
-  // Random color from HSL
+  const x = msg.x || (chatRect.left + chatRect.width / 2);
+  const y = msg.y || (chatRect.top + chatRect.height / 2);
+
+  // Random color
   const color = `hsl(${Math.random() * 360}, 70%, 50%)`;
 
-  // Create the block with tuned parameters for natural movement
-  const block = Bodies.rectangle(x, y, width, height, {
+  // Let’s define mass based on area
+  const area = blockWidth * blockHeight;
+  const density = 0.0004 * area; // Adjust for a lighter or heavier feel
+
+  const block = Bodies.rectangle(x, y, blockWidth, blockHeight, {
     chamfer: { radius: 10 },
-    friction: 0.8,
-    frictionAir: 0.03,
-    restitution: 0.05,
+    friction: 0.6,
+    frictionAir: 0.02,
+    restitution: 0.1,
+    density,
     render: { fillStyle: color },
-    label: message.text,
+    label: msg.text,
   });
-  block.messageId = message._id || Common.nextId();
-  block.text = message.text;
-  // Apply some angular damping to avoid wild spins
-  block.frictionAir = 0.05;
+  block.messageId = msg._id || Common.nextId();
+  block.text = msg.text;
   Composite.add(world, block);
+  blocks[block.messageId] = block;
   return block;
 }
 
-// Animate chat fade out/in (simulate dialogue transforming into a block)
-const chatContainer = document.getElementById('chat');
-function animateChatFade(callback) {
-  chatContainer.style.opacity = 0;
+// Animate chat fade
+const chatDiv = document.getElementById('chat');
+function animateChatFade(cb) {
+  chatDiv.style.opacity = 0;
   setTimeout(() => {
-    if (callback) callback();
+    if (cb) cb();
     setTimeout(() => {
-      chatContainer.style.opacity = 1;
+      chatDiv.style.opacity = 1;
     }, 200);
   }, 200);
 }
 
-// Send a new message with animation
-document.getElementById('sendBtn').addEventListener('click', () => {
+// Send message
+function sendMessage() {
   const input = document.getElementById('messageInput');
   const text = input.value.trim();
   if (!text) return;
-  const chatRect = chatContainer.getBoundingClientRect();
-  const x = chatRect.left + chatRect.width / 2;
-  const y = chatRect.bottom;
-  const message = { room: roomId, text, x, y };
 
+  // We'll spawn from the chat container's position
+  const chatRect = chatDiv.getBoundingClientRect();
+  const x = chatRect.left + chatRect.width / 2;
+  const y = chatRect.top + chatRect.height / 2;
+
+  const message = { room: roomId, text, x, y };
   animateChatFade(() => {
     socket.emit('newMessage', message);
   });
   input.value = '';
+}
+
+// Listen for button click or Shift+Enter
+document.getElementById('sendBtn').addEventListener('click', sendMessage);
+document.getElementById('messageInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
 });
 
-// Load stored messages when connected
-socket.on('loadMessages', (messages) => {
-  messages.forEach((msg) => {
-    const block = createMessageBlock(msg);
-    blocks[msg._id] = block;
-  });
+// Socket events
+socket.on('loadMessages', (msgs) => {
+  msgs.forEach((m) => createMessageBlock(m));
 });
 
-// Listen for new messages broadcast from server
-socket.on('newMessage', (msg) => {
-  const block = createMessageBlock(msg);
-  blocks[msg._id] = block;
+socket.on('newMessage', (m) => {
+  createMessageBlock(m);
 });
 
-// When a drag ends, send updated position to others in the room
-Events.on(mouseConstraint, 'enddrag', (event) => {
-  const body = event.body;
+// On drag end, broadcast new position
+Events.on(mouseConstraint, 'enddrag', (evt) => {
+  const body = evt.body;
   if (body) {
     socket.emit('updatePosition', {
       room: roomId,
@@ -164,30 +178,33 @@ Events.on(mouseConstraint, 'enddrag', (event) => {
   }
 });
 
-// Listen for position updates from other clients
 socket.on('updatePosition', (data) => {
-  if (data.id && blocks[data.id]) {
-    Body.setPosition(blocks[data.id], { x: data.x, y: data.y });
-    Body.setAngle(blocks[data.id], data.angle);
+  const block = blocks[data.id];
+  if (block) {
+    Body.setPosition(block, { x: data.x, y: data.y });
+    Body.setAngle(block, data.angle);
   }
 });
 
-// Draw text on each block that rotates with the block
+// Draw multi-line text
 Events.on(render, 'afterRender', () => {
-  const context = render.context;
-  context.font = '16px Arial';
-  context.fillStyle = '#ffffff';
+  const ctx = render.context;
+  ctx.font = '16px Arial';
+  ctx.fillStyle = '#ffffff';
   for (let id in blocks) {
     const block = blocks[id];
     const pos = block.position;
     const angle = block.angle;
-    const text = block.text;
-    const textWidth = context.measureText(text).width;
+    const lines = block.text.split('\n');
 
-    context.save();
-    context.translate(pos.x, pos.y);
-    context.rotate(angle);
-    context.fillText(text, -textWidth / 2, 5);
-    context.restore();
+    ctx.save();
+    ctx.translate(pos.x, pos.y);
+    ctx.rotate(angle);
+    lines.forEach((line, i) => {
+      const lineWidth = ctx.measureText(line).width;
+      // center each line, 20px apart
+      ctx.fillText(line, -lineWidth / 2, -(lines.length - 1) * 10 + i * 20);
+    });
+    ctx.restore();
   }
 });
