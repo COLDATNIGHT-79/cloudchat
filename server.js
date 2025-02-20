@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 
 // Connect to MongoDB (Atlas or local)
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/chatroom', {
+mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://user:admin@cluster0.lgrfo.mongodb.net/', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
