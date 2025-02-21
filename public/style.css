@@ -1,11 +1,11 @@
 body {
   margin: 0;
+  overflow: hidden;
   background-color: #121212;
   font-family: Arial, sans-serif;
   color: #eee;
 }
 
-/* Lobby */
 .lobby {
   display: flex;
   flex-direction: column;
@@ -39,11 +39,12 @@ body {
   color: #fff;
   cursor: pointer;
 }
+
 .lobby button:hover {
   background-color: #0056b3;
 }
 
-/* Room */
+/* Chat container in room page */
 #chat {
   position: absolute;
   top: 10px;
@@ -53,20 +54,16 @@ body {
   padding: 10px;
   border-radius: 8px;
   transition: opacity 0.2s ease;
-  max-width: 300px;
 }
 
-#chat textarea {
-  width: 100%;
+#chat input {
+  width: 200px;
   padding: 5px;
   border-radius: 4px;
   border: none;
-  resize: vertical;
-  font-size: 14px;
 }
 
 #chat button {
-  margin-top: 5px;
   padding: 5px 10px;
   border-radius: 4px;
   border: none;
@@ -74,6 +71,7 @@ body {
   color: #fff;
   cursor: pointer;
 }
+
 #chat button:hover {
   background-color: #0056b3;
 }
@@ -83,8 +81,8 @@ body {
   font-weight: bold;
 }
 
-/* Canvas */
 canvas {
   display: block;
   margin: 0 auto;
+  background-color: #181818;
 }

@@ -8,7 +8,7 @@
   <body>
     <div id="chat">
       <div id="roomIdDisplay"></div>
-      <textarea id="messageInput" rows="3" placeholder="Type your message..."></textarea>
+      <input id="messageInput" type="text" placeholder="Type a message..." />
       <button id="sendBtn">Send</button>
     </div>
     <canvas id="world" width="1024" height="768"></canvas>
@@ -17,7 +17,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <!-- Matter.js from CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-    <!-- Our client-side code -->
+    <!-- Client-side code -->
     <script src="client.js"></script>
   </body>
 </html>

@@ -20,13 +20,13 @@
     </div>
 
     <script>
-      // Create Room
+      // Create Room: generate a random room ID and navigate to room page
       document.getElementById('createRoomBtn').addEventListener('click', () => {
         const roomId = Math.random().toString(36).substring(2, 8);
         window.location.href = '/room.html?room=' + roomId;
       });
 
-      // Join Room
+      // Join Room: navigate to room page using the input room ID
       document.getElementById('joinRoomBtn').addEventListener('click', () => {
         const roomId = document.getElementById('joinRoomInput').value.trim();
         if (roomId) {
