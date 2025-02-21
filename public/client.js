@@ -191,4 +191,3 @@ Events.on(render, 'afterRender', () => {
     context.restore();
   }
 });
-
