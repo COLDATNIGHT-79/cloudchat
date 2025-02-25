@@ -5,7 +5,6 @@
     <title>Lobby</title>
     <link rel="stylesheet" href="style.css" />
     <style>
-      /* You can also place this in style.css if desired. */
       .gradient-display {
         width: 300px;
         height: 40px;
@@ -32,7 +31,6 @@
     <div class="lobby">
       <h1>Welcome to Chatroom Physics</h1>
       <div class="actions">
-        
         <!-- Combined Gradient Display -->
         <div class="gradient-display" id="gradientDisplay">
           Your Gradient
@@ -63,64 +61,46 @@
     </div>
 
     <script>
-      // Helper: Generate random hex color
+      // Helper: Generate random hex color.
       function randomColor() {
         return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
       }
 
-      // Get or create persistent userId
+      // Get or create a persistent userId.
       let userId = localStorage.getItem('userId');
       if (!userId) {
         userId = Math.random().toString(36).substring(2, 10);
         localStorage.setItem('userId', userId);
       }
+      console.log("UserId:", userId);
 
-      // We'll load or set user colors from the server
+      // User colors state.
       let userColors = { color1: '#ff0000', color2: '#0000ff' };
 
-      // Update the gradient swatch and the text display
+      // Update the gradient display.
       function updateGradientDisplay() {
         const gradDiv = document.getElementById('gradientDisplay');
         gradDiv.style.background = `linear-gradient(45deg, ${userColors.color1}, ${userColors.color2})`;
         const currentColorsSpan = document.getElementById('currentColors');
         currentColorsSpan.textContent = `${userColors.color1} to ${userColors.color2}`;
-
-        // Update the color pickers to match
+        // Sync the color pickers.
         document.getElementById('colorPicker1').value = userColors.color1;
         document.getElementById('colorPicker2').value = userColors.color2;
+        console.log("Updated gradient display:", userColors);
       }
 
-      // Fetch user data from server to load existing colors
+      // Fetch current user colors from MongoDB.
       fetch(`/api/user/${userId}`)
         .then(res => res.json())
         .then(data => {
+          console.log("Fetched user data from DB:", data);
           userColors.color1 = data.color1;
           userColors.color2 = data.color2;
           updateGradientDisplay();
         })
         .catch(err => console.error(err));
 
-      // Whenever user picks a color from the color pickers, update local + server
-      document.getElementById('colorPicker1').addEventListener('input', (e) => {
-        userColors.color1 = e.target.value;
-        updateGradientDisplay();
-        updateColorsOnServer();
-      });
-      document.getElementById('colorPicker2').addEventListener('input', (e) => {
-        userColors.color2 = e.target.value;
-        updateGradientDisplay();
-        updateColorsOnServer();
-      });
-
-      // Randomize button
-      document.getElementById('randomizeBtn').addEventListener('click', () => {
-        userColors.color1 = randomColor();
-        userColors.color2 = randomColor();
-        updateGradientDisplay();
-        updateColorsOnServer();
-      });
-
-      // Function to update user colors on the server
+      // Update user colors on the server (MongoDB).
       function updateColorsOnServer() {
         fetch(`/api/user/${userId}/colors`, {
           method: 'POST',
@@ -132,19 +112,43 @@
         })
           .then(res => res.json())
           .then(data => {
+            console.log("Updated user data on DB:", data);
             userColors = data;
             updateGradientDisplay();
           })
           .catch(err => console.error(err));
       }
 
-      // Create Room: generate a random room id
+      // Event listeners for the color pickers.
+      document.getElementById('colorPicker1').addEventListener('input', (e) => {
+        userColors.color1 = e.target.value;
+        console.log("ColorPicker1 changed:", userColors.color1);
+        updateGradientDisplay();
+        updateColorsOnServer();
+      });
+      document.getElementById('colorPicker2').addEventListener('input', (e) => {
+        userColors.color2 = e.target.value;
+        console.log("ColorPicker2 changed:", userColors.color2);
+        updateGradientDisplay();
+        updateColorsOnServer();
+      });
+
+      // Randomize colors.
+      document.getElementById('randomizeBtn').addEventListener('click', () => {
+        userColors.color1 = randomColor();
+        userColors.color2 = randomColor();
+        console.log("Randomized colors:", userColors);
+        updateGradientDisplay();
+        updateColorsOnServer();
+      });
+
+      // Create Room: generate a random room ID.
       document.getElementById('createRoomBtn').addEventListener('click', () => {
         const roomId = Math.random().toString(36).substring(2, 8);
         window.location.href = `/room.html?room=${roomId}`;
       });
 
-      // Join Room: navigate using provided room ID
+      // Join Room: navigate using provided room ID.
       document.getElementById('joinRoomBtn').addEventListener('click', () => {
         const roomId = document.getElementById('joinRoomInput').value.trim();
         if (roomId) {
