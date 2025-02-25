@@ -29,7 +29,7 @@
   </head>
   <body>
     <div class="lobby">
-      <h1>Welcome to Chatroom Physics</h1>
+      <h1>DROP IT!!</h1>
       <div class="actions">
         <!-- Gradient Swatch -->
         <div class="gradient-display" id="gradientDisplay">
@@ -53,23 +53,24 @@
         </div>
       </div>
     </div>
-
     <script>
       // Helper: Generate random hex color.
       function randomColor() {
-        return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+        return '#' + Math.floor(Math.random() * 16777215)
+          .toString(16)
+          .padStart(6, '0');
       }
-
+    
       // Get or generate a persistent userId.
       let userId = localStorage.getItem('userId');
       if (!userId) {
         userId = Math.random().toString(36).substring(2, 10);
         localStorage.setItem('userId', userId);
       }
-
+    
       // We'll load user colors from the server.
       let userColors = { color1: '#ff0000', color2: '#0000ff' };
-
+    
       // Update gradient swatch and text display.
       function updateGradientDisplay() {
         const gradDiv = document.getElementById('gradientDisplay');
@@ -79,7 +80,7 @@
         document.getElementById('colorPicker1').value = userColors.color1;
         document.getElementById('colorPicker2').value = userColors.color2;
       }
-
+    
       // Load user data from server.
       fetch(`/api/user/${userId}`)
         .then(res => res.json())
@@ -89,7 +90,7 @@
           updateGradientDisplay();
         })
         .catch(err => console.error(err));
-
+    
       // Update colors when color pickers change.
       document.getElementById('colorPicker1').addEventListener('input', (e) => {
         userColors.color1 = e.target.value;
@@ -101,37 +102,39 @@
         updateGradientDisplay();
         updateColorsOnServer();
       });
-
-      // Randomize colors.
+    
+      // Randomize colors (no delayed reset—just set and update immediately).
       document.getElementById('randomizeBtn').addEventListener('click', () => {
         userColors.color1 = randomColor();
         userColors.color2 = randomColor();
         updateGradientDisplay();
         updateColorsOnServer();
       });
-
+    
       // Update user colors on the server.
       function updateColorsOnServer() {
         fetch(`/api/user/${userId}/colors`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(userColors)
+          body: JSON.stringify({
+            color1: userColors.color1,
+            color2: userColors.color2
+          })
         })
           .then(res => res.json())
           .then(data => {
+            // Directly update userColors with the returned data.
             userColors = data;
             updateGradientDisplay();
           })
           .catch(err => console.error(err));
       }
-
-      // Create Room: generate a random room ID.
+    
+      // Create and Join room functions remain the same.
       document.getElementById('createRoomBtn').addEventListener('click', () => {
         const roomId = Math.random().toString(36).substring(2, 8);
         window.location.href = `/room.html?room=${roomId}`;
       });
-
-      // Join Room.
       document.getElementById('joinRoomBtn').addEventListener('click', () => {
         const roomId = document.getElementById('joinRoomInput').value.trim();
         if (roomId) {
@@ -139,5 +142,7 @@
         }
       });
     </script>
+    
+   
   </body>
 </html>
