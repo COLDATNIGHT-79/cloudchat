@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const path = require('path');
 const bodyParser = require('body-parser');
 const Matter = require('matter-js');
-
+const DEFAULT_OPACITY = 100;
 // --- MongoDB Setup ---
 mongoose.connect('mongodb+srv://user:admin@cluster0.lgrfo.mongodb.net/', {
   useNewUrlParser: true,
@@ -32,26 +32,23 @@ const messageSchema = new mongoose.Schema({
   userId: String,
   color1: String,
   color2: String,
+  opacity: { type: Number, default: DEFAULT_OPACITY },
   timestamp: { type: Date, default: Date.now },
 });
 const Message = mongoose.model('Message', messageSchema);
 
-// --- Express Middleware ---
+
+
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- Server-Side Physics Setup ---
 const engine = Matter.Engine.create();
 const world = engine.world;
-// Use simpler settings to reduce extreme motion.
-world.gravity.y = 0.5; // moderate gravity
+world.gravity.y = 1.0;
 
-// Canvas boundaries
 const WIDTH = 1024;
 const HEIGHT = 768;
 const WALL_THICKNESS = 50;
-
-// Add walls
 const walls = [
   Matter.Bodies.rectangle(WIDTH / 2, -WALL_THICKNESS / 2, WIDTH, WALL_THICKNESS, { isStatic: true }),
   Matter.Bodies.rectangle(WIDTH / 2, HEIGHT + WALL_THICKNESS / 2, WIDTH, WALL_THICKNESS, { isStatic: true }),
@@ -60,24 +57,56 @@ const walls = [
 ];
 Matter.Composite.add(world, walls);
 
-// Keep track of message bodies in memory
-const bodies = {}; // key: messageId, value: Matter body
+const bodies = {}; 
 
-// Helper: create a body for a message
 async function createMessageBody(msg) {
   const lines = msg.text.split('\n');
   const longestLine = Math.max(...lines.map(line => line.length));
   const width = Math.max(50, 10 * longestLine);
   const height = 25 * lines.length + 20;
+  
   const body = Matter.Bodies.rectangle(
     msg.x || WIDTH / 2,
     msg.y || HEIGHT / 2,
     width,
     height,
     {
-      friction: 0.05,
-      frictionAir: 0.01,
-      restitution: 0.2,
+      chamfer: { radius: 15 },
+      friction: 0.9,
+      frictionAir: 0.02,
+      restitution: 0.1,
+      label: msg.text,
+    }
+  );
+  body.messageId = msg._id.toString();
+  body.userId = msg.userId;
+  body.color1 = msg.color1;
+  body.color2 = msg.color2;
+  body.opacity = msg.opacity; // store opacity on the body too
+  body.customWidth = width;
+  body.customHeight = height;
+  
+  Matter.Composite.add(world, body);
+  bodies[body.messageId] = body;
+}
+
+async function createMessageBody(msg) {
+  const lines = msg.text.split('\n');
+  const longestLine = Math.max(...lines.map(line => line.length));
+  const width = Math.max(50, 10 * longestLine);
+  const height = 25 * lines.length + 20;
+  
+  // Use similar friction and restitution as your client settings
+  const body = Matter.Bodies.rectangle(
+    msg.x || WIDTH / 2,
+    msg.y || HEIGHT / 2,
+    width,
+    height,
+    {
+      chamfer: { radius: 15 },
+      friction: 0.9,
+      frictionAir: 0.02,
+      restitution: 0.1, // adjust for bounce behavior
       label: msg.text,
     }
   );
@@ -91,27 +120,49 @@ async function createMessageBody(msg) {
   Matter.Composite.add(world, body);
   bodies[body.messageId] = body;
 }
-
-// Load existing messages in a room, create bodies if needed
-async function loadMessagesForRoom(room, socket) {
+async function updateOpacityForRoom(room) {
   try {
-    const messages = await Message.find({ room });
+    // Find messages in this room (excluding ones already at 0)
+    const messages = await Message.find({ room, opacity: { $gt: 0 } });
     for (const msg of messages) {
-      if (!bodies[msg._id]) {
-        await createMessageBody(msg);
+      msg.opacity -= 10;
+      if (msg.opacity <= 0) {
+        // Remove from DB and physics world.
+        await Message.findByIdAndDelete(msg._id);
+        const body = bodies[msg._id];
+        if (body) {
+          Matter.Composite.remove(world, body);
+          delete bodies[msg._id];
+        }
+        // Broadcast removal so clients remove it.
+        io.to(room).emit('removeMessage', { id: msg._id });
+      } else {
+        await msg.save();
+        // Also update the corresponding Matter body opacity
+        const body = bodies[msg._id];
+        if (body) {
+          body.opacity = msg.opacity;
+        }
+        // Broadcast the new opacity so clients update their render.
+        io.to(room).emit('updateOpacity', { id: msg._id, opacity: msg.opacity });
       }
     }
-    socket.emit('loadMessages', messages);
   } catch (err) {
     console.error(err);
   }
 }
 
-// Physics update loop
-setInterval(() => {
-  Matter.Engine.update(engine, 1000 / 60); // 60fps
+// Increase solver iterations for more accurate collision resolution
+engine.positionIterations = 20;
+engine.velocityIterations = 20;
 
-  // Broadcast positions to all clients
+// Run the simulation at 120 FPS for higher fidelity
+const timeStep = 1000 / 120;
+
+setInterval(() => {
+  Matter.Engine.update(engine, timeStep);
+
+  // Broadcast the updated positions of all bodies to all clients
   for (let id in bodies) {
     const b = bodies[id];
     io.emit('updatePosition', {
@@ -121,9 +172,9 @@ setInterval(() => {
       angle: b.angle,
     });
   }
-}, 1000 / 30); // broadcast ~30 fps
+}, timeStep);
 
-// --- REST Endpoints ---
+
 app.get('/api/user/:userId', async (req, res) => {
   const userId = req.params.userId;
   try {
@@ -159,12 +210,10 @@ app.post('/api/user/:userId/colors', async (req, res) => {
   }
 });
 
-// --- Socket.IO Setup ---
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   socket.on('joinRoom', async ({ room, userId }) => {
-    // Enforce max 4 users
     const clients = io.sockets.adapter.rooms.get(room);
     if (clients && clients.size >= 4) {
       socket.emit('roomError', 'max users in room');
@@ -172,11 +221,19 @@ io.on('connection', (socket) => {
     }
     socket.join(room);
     console.log(`User ${socket.id} (uid: ${userId}) joined room ${room}`);
-    await loadMessagesForRoom(room, socket);
+    // Load messages for the room and create bodies.
+    const messages = await Message.find({ room });
+    for (const msg of messages) {
+      if (!bodies[msg._id]) {
+        await createMessageBody(msg);
+      }
+    }
+    socket.emit('loadMessages', messages);
   });
 
   socket.on('newMessage', async (data) => {
     try {
+      // Create new message with full opacity.
       const msg = new Message({
         room: data.room,
         text: data.text,
@@ -185,34 +242,34 @@ io.on('connection', (socket) => {
         userId: data.userId,
         color1: data.color1,
         color2: data.color2,
+        opacity: DEFAULT_OPACITY,
       });
       const saved = await msg.save();
       await createMessageBody(saved);
+      // Broadcast the new message.
       io.to(data.room).emit('newMessage', saved);
+      // Update opacity for all previous messages.
+      updateOpacityForRoom(data.room);
     } catch (err) {
       console.error(err);
     }
   });
 
-  // Client wants to move/drag a block
-  // We'll apply a direct position set or a small "teleport" approach
-  socket.on('dragBlock', async (data) => {
-    // data: { room, messageId, x, y, userId }
+
+   // Drag event – only allow owner's control
+   socket.on('dragBlock', async (data) => {
     const { messageId, x, y, userId, room } = data;
     try {
       const msg = await Message.findById(messageId);
-      if (!msg) return; // no such message
-      if (msg.userId !== userId) {
-        console.warn(`User ${userId} tried to move someone else's message ${messageId}`);
-        return; // not the owner, ignore
+      if (!msg || msg.userId !== userId) {
+        console.warn(`User ${userId} attempted to move message ${messageId} they don't own`);
+        return;
       }
-      // Update Matter body position
       const body = bodies[messageId];
       if (body) {
         Matter.Body.setPosition(body, { x, y });
-        Matter.Body.setVelocity(body, { x: 0, y: 0 }); // stop it from flying off
+        Matter.Body.setVelocity(body, { x: 0, y: 0 });
       }
-      // Update DB for persistence
       msg.x = x;
       msg.y = y;
       await msg.save();

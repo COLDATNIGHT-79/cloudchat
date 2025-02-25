@@ -1,24 +1,20 @@
 // client.js
 const socket = io();
 
-// Retrieve or generate userId
+// Get or generate userId.
 let userId = localStorage.getItem('userId');
 if (!userId) {
   userId = Math.random().toString(36).substring(2, 10);
   localStorage.setItem('userId', userId);
 }
 
-// Load user colors from server
+// Fetch user colors from server.
 let userColors = { color1: '#00AAFF', color2: '#FFFFFF' };
 function updateUserColorDisplay() {
   const div = document.getElementById('userColors');
-  if (div) {
-    div.textContent = `Your Gradient: ${userColors.color1} to ${userColors.color2}`;
-  }
+  if (div) div.textContent = `Your Gradient: ${userColors.color1} to ${userColors.color2}`;
   const gradDiv = document.getElementById('gradientDisplayRoom');
-  if (gradDiv) {
-    gradDiv.style.background = `linear-gradient(45deg, ${userColors.color1}, ${userColors.color2})`;
-  }
+  if (gradDiv) gradDiv.style.background = `linear-gradient(45deg, ${userColors.color1}, ${userColors.color2})`;
 }
 fetch(`/api/user/${userId}`)
   .then(res => res.json())
@@ -28,32 +24,30 @@ fetch(`/api/user/${userId}`)
   })
   .catch(err => console.error(err));
 
-// Check room
+// Room setup.
 const urlParams = new URLSearchParams(window.location.search);
 const roomId = urlParams.get('room');
 if (!roomId) {
-  alert('No room specified');
+  alert('No room specified.');
   window.location.href = '/';
 }
 document.getElementById('roomIdDisplay').textContent = "Room ID: " + roomId;
 
-// Listen for room error
+// Listen for room errors.
 socket.on('roomError', (msg) => {
   alert(msg);
   window.location.href = '/';
 });
 
-// Join room
+// Join room.
 socket.emit('joinRoom', { room: roomId, userId });
 
-// Canvas for rendering
+// Canvas setup.
 const canvas = document.getElementById('world');
 const ctx = canvas.getContext('2d');
-
-// Store blocks in a dictionary
 const blocks = {};
 
-// Helper: create a block object for rendering
+// Helper: Create a block object for rendering.
 function createBlock(msg) {
   const lines = msg.text.split('\n');
   const longestLine = Math.max(...lines.map(line => line.length));
@@ -69,23 +63,24 @@ function createBlock(msg) {
     height,
     color1: msg.color1,
     color2: msg.color2,
+    opacity: msg.opacity !== undefined ? msg.opacity : 100,
     userId: msg.userId,
   };
 }
 
-// Listen for initial load
+// Load initial messages.
 socket.on('loadMessages', (messages) => {
-  messages.forEach((msg) => {
+  messages.forEach(msg => {
     blocks[msg._id] = createBlock(msg);
   });
 });
 
-// Listen for new messages
+// New message received.
 socket.on('newMessage', (msg) => {
   blocks[msg._id] = createBlock(msg);
 });
 
-// Listen for position updates
+// Update position updates.
 socket.on('updatePosition', (data) => {
   const block = blocks[data.id];
   if (block) {
@@ -95,16 +90,27 @@ socket.on('updatePosition', (data) => {
   }
 });
 
-// Send a new message
+// Listen for opacity updates.
+socket.on('updateOpacity', (data) => {
+  const block = blocks[data.id];
+  if (block) {
+    block.opacity = data.opacity;
+  }
+});
+
+// Remove message.
+socket.on('removeMessage', (data) => {
+  delete blocks[data.id];
+});
+
+// Send new message.
 function sendMessage() {
   const input = document.getElementById('messageInput');
   const text = input.value.trim();
   if (!text) return;
-  
   const chatRect = document.getElementById('chat').getBoundingClientRect();
   const x = chatRect.left + chatRect.width / 2;
   const y = chatRect.bottom;
-  
   const blockData = {
     room: roomId,
     text,
@@ -117,7 +123,6 @@ function sendMessage() {
   socket.emit('newMessage', blockData);
   input.value = '';
 }
-
 document.getElementById('sendBtn').addEventListener('click', sendMessage);
 document.getElementById('messageInput').addEventListener('keydown', (e) => {
   if (e.shiftKey && e.key === 'Enter') {
@@ -126,14 +131,24 @@ document.getElementById('messageInput').addEventListener('keydown', (e) => {
   }
 });
 
-// Render loop
+// Render loop with opacity applied.
+// Render loop with smooth opacity transition
 function renderBlocks() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
   Object.values(blocks).forEach(block => {
+    // If a target opacity is set, interpolate toward it:
+    if (block.targetOpacity !== undefined) {
+      const lerpFactor = 0.1; // adjust for smoother or faster transition
+      block.opacity += (block.targetOpacity - block.opacity) * lerpFactor;
+    }
+    
     ctx.save();
     ctx.translate(block.x, block.y);
     ctx.rotate(block.angle);
     
+    // Apply opacity transition for the block's fill
+    ctx.globalAlpha = block.opacity / 100; // scale 0-100 to 0-1
     const gradient = ctx.createLinearGradient(-block.width/2, -block.height/2, block.width/2, block.height/2);
     gradient.addColorStop(0, block.color1);
     gradient.addColorStop(1, block.color2);
@@ -153,8 +168,9 @@ function renderBlocks() {
     ctx.closePath();
     ctx.fill();
     
-    // Draw text
-    ctx.fillStyle = '#fff';
+    // Draw text with full opacity (reset alpha)
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffffff';
     ctx.font = '18px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -162,25 +178,24 @@ function renderBlocks() {
     const lineHeight = 25;
     const totalTextHeight = lineHeight * lines.length;
     lines.forEach((line, i) => {
-      ctx.fillText(line, 0, -totalTextHeight/2 + (i * lineHeight) + lineHeight/2);
+      ctx.fillText(line, 0, -totalTextHeight/2 + lineHeight/2 + i * lineHeight);
     });
     ctx.restore();
   });
+  
   requestAnimationFrame(renderBlocks);
 }
 requestAnimationFrame(renderBlocks);
 
-// Dragging logic: we detect a mousedown on a block, then send 'dragBlock' to the server
+
+// Drag logic – send drag events to the server.
 let dragging = null;
 let offsetX = 0, offsetY = 0;
-
 canvas.addEventListener('mousedown', (e) => {
   const rect = canvas.getBoundingClientRect();
   const mouseX = e.clientX - rect.left;
   const mouseY = e.clientY - rect.top;
-  // Find top-most block under cursor
   let found = null;
-  let foundId = null;
   const blockIds = Object.keys(blocks);
   for (let i = blockIds.length - 1; i >= 0; i--) {
     const b = blocks[blockIds[i]];
@@ -190,7 +205,6 @@ canvas.addEventListener('mousedown', (e) => {
     const bottom = b.y + b.height/2;
     if (mouseX >= left && mouseX <= right && mouseY >= top && mouseY <= bottom) {
       found = b;
-      foundId = b.id;
       break;
     }
   }
@@ -200,7 +214,6 @@ canvas.addEventListener('mousedown', (e) => {
     offsetY = mouseY - found.y;
   }
 });
-
 canvas.addEventListener('mousemove', (e) => {
   if (dragging) {
     const rect = canvas.getBoundingClientRect();
@@ -208,7 +221,6 @@ canvas.addEventListener('mousemove', (e) => {
     const mouseY = e.clientY - rect.top;
     const newX = mouseX - offsetX;
     const newY = mouseY - offsetY;
-    // Immediately tell the server to move the block
     socket.emit('dragBlock', {
       room: roomId,
       messageId: dragging.id,
@@ -218,10 +230,6 @@ canvas.addEventListener('mousemove', (e) => {
     });
   }
 });
+canvas.addEventListener('mouseup', () => { dragging = null; });
+canvas.addEventListener('mouseleave', () => { dragging = null; });
 
-canvas.addEventListener('mouseup', () => {
-  dragging = null;
-});
-canvas.addEventListener('mouseleave', () => {
-  dragging = null;
-});
