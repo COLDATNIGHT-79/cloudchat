@@ -91,12 +91,14 @@ socket.on('updatePosition', (data) => {
 });
 
 // Listen for opacity updates.
+// Listen for opacity updates.
 socket.on('updateOpacity', (data) => {
   const block = blocks[data.id];
   if (block) {
-    block.opacity = data.opacity;
+    block.targetOpacity = data.opacity;
   }
 });
+
 
 // Remove message.
 socket.on('removeMessage', (data) => {
