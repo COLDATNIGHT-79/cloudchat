@@ -1,15 +1,21 @@
-// server.js
+/**
+ * server.js
+ *
+ * Run with: node server.js
+ */
 const express = require('express');
-const app = express();
-const http = require('http').createServer(app);
-const { Server } = require('socket.io');
-const io = new Server(http);
-const mongoose = require('mongoose');
 const path = require('path');
 const bodyParser = require('body-parser');
+const http = require('http');
+const { Server } = require('socket.io');
+const mongoose = require('mongoose');
 const Matter = require('matter-js');
-const DEFAULT_OPACITY = 100;
-// --- MongoDB Setup ---
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+// Connect to MongoDB (adjust your connection string)
 mongoose.connect('mongodb+srv://user:admin@cluster0.lgrfo.mongodb.net/', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -32,137 +38,47 @@ const messageSchema = new mongoose.Schema({
   userId: String,
   color1: String,
   color2: String,
-  opacity: { type: Number, default: DEFAULT_OPACITY },
   timestamp: { type: Date, default: Date.now },
 });
 const Message = mongoose.model('Message', messageSchema);
 
-
-
+// --- Express Setup ---
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const engine = Matter.Engine.create();
+// --- Matter.js Setup (Server Authoritative) ---
+const { Engine, World, Bodies, Body, Composite, Constraint } = Matter;
+const engine = Engine.create();
 const world = engine.world;
-world.gravity.y = 1.0;
+world.gravity.y = 1.0; // Adjust gravity as desired
 
+// Canvas dimensions (should match client)
 const WIDTH = 1024;
 const HEIGHT = 768;
 const WALL_THICKNESS = 50;
+
 const walls = [
-  Matter.Bodies.rectangle(WIDTH / 2, -WALL_THICKNESS / 2, WIDTH, WALL_THICKNESS, { isStatic: true }),
-  Matter.Bodies.rectangle(WIDTH / 2, HEIGHT + WALL_THICKNESS / 2, WIDTH, WALL_THICKNESS, { isStatic: true }),
-  Matter.Bodies.rectangle(-WALL_THICKNESS / 2, HEIGHT / 2, WALL_THICKNESS, HEIGHT, { isStatic: true }),
-  Matter.Bodies.rectangle(WIDTH + WALL_THICKNESS / 2, HEIGHT / 2, WALL_THICKNESS, HEIGHT, { isStatic: true }),
+  Bodies.rectangle(WIDTH / 2, -WALL_THICKNESS / 2, WIDTH, WALL_THICKNESS, { isStatic: true }),
+  Bodies.rectangle(WIDTH / 2, HEIGHT + WALL_THICKNESS / 2, WIDTH, WALL_THICKNESS, { isStatic: true }),
+  Bodies.rectangle(-WALL_THICKNESS / 2, HEIGHT / 2, WALL_THICKNESS, HEIGHT, { isStatic: true }),
+  Bodies.rectangle(WIDTH + WALL_THICKNESS / 2, HEIGHT / 2, WALL_THICKNESS, HEIGHT, { isStatic: true }),
 ];
-Matter.Composite.add(world, walls);
+Composite.add(world, walls);
 
-const bodies = {}; 
+// Dictionaries to keep track of bodies and constraints
+const bodies = {}; // messageId -> Matter body
+const mouseBodies = {}; // socket.id -> virtual mouse body
+const mouseConstraints = {}; // socket.id -> Constraint
 
-async function createMessageBody(msg) {
-  const lines = msg.text.split('\n');
-  const longestLine = Math.max(...lines.map(line => line.length));
-  const width = Math.max(50, 10 * longestLine);
-  const height = 25 * lines.length + 20;
-  
-  const body = Matter.Bodies.rectangle(
-    msg.x || WIDTH / 2,
-    msg.y || HEIGHT / 2,
-    width,
-    height,
-    {
-      chamfer: { radius: 15 },
-      friction: 0.9,
-      frictionAir: 0.02,
-      restitution: 0.1,
-      label: msg.text,
-    }
-  );
-  body.messageId = msg._id.toString();
-  body.userId = msg.userId;
-  body.color1 = msg.color1;
-  body.color2 = msg.color2;
-  body.opacity = msg.opacity; // store opacity on the body too
-  body.customWidth = width;
-  body.customHeight = height;
-  
-  Matter.Composite.add(world, body);
-  bodies[body.messageId] = body;
-}
-
-async function createMessageBody(msg) {
-  const lines = msg.text.split('\n');
-  const longestLine = Math.max(...lines.map(line => line.length));
-  const width = Math.max(50, 10 * longestLine);
-  const height = 25 * lines.length + 20;
-  
-  // Use similar friction and restitution as your client settings
-  const body = Matter.Bodies.rectangle(
-    msg.x || WIDTH / 2,
-    msg.y || HEIGHT / 2,
-    width,
-    height,
-    {
-      chamfer: { radius: 15 },
-      friction: 0.9,
-      frictionAir: 0.02,
-      restitution: 0.1, // adjust for bounce behavior
-      label: msg.text,
-    }
-  );
-  body.messageId = msg._id.toString();
-  body.userId = msg.userId;
-  body.color1 = msg.color1;
-  body.color2 = msg.color2;
-  body.customWidth = width;
-  body.customHeight = height;
-  
-  Matter.Composite.add(world, body);
-  bodies[body.messageId] = body;
-}
-async function updateOpacityForRoom(room) {
-  try {
-    // Find messages in this room (excluding ones already at 0)
-    const messages = await Message.find({ room, opacity: { $gt: 0 } });
-    for (const msg of messages) {
-      msg.opacity -= 10;
-      if (msg.opacity <= 0) {
-        // Remove from DB and physics world.
-        await Message.findByIdAndDelete(msg._id);
-        const body = bodies[msg._id];
-        if (body) {
-          Matter.Composite.remove(world, body);
-          delete bodies[msg._id];
-        }
-        // Broadcast removal so clients remove it.
-        io.to(room).emit('removeMessage', { id: msg._id });
-      } else {
-        await msg.save();
-        // Also update the corresponding Matter body opacity
-        const body = bodies[msg._id];
-        if (body) {
-          body.opacity = msg.opacity;
-        }
-        // Broadcast the new opacity so clients update their render.
-        io.to(room).emit('updateOpacity', { id: msg._id, opacity: msg.opacity });
-      }
-    }
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// Increase solver iterations for more accurate collision resolution
+// Increase solver iterations for more stable collision handling
 engine.positionIterations = 20;
 engine.velocityIterations = 20;
 
-// Run the simulation at 120 FPS for higher fidelity
-const timeStep = 1000 / 120;
-
+// Run physics simulation and broadcast positions
+const timeStep = 1000 / 60; // 60 FPS simulation
 setInterval(() => {
-  Matter.Engine.update(engine, timeStep);
-
-  // Broadcast the updated positions of all bodies to all clients
+  Engine.update(engine, timeStep);
+  // Broadcast every body's position to all clients
   for (let id in bodies) {
     const b = bodies[id];
     io.emit('updatePosition', {
@@ -174,7 +90,162 @@ setInterval(() => {
   }
 }, timeStep);
 
+// Helper: create a Matter body for a message
+async function createMessageBody(msg) {
+  const lines = msg.text.split('\n');
+  const longestLine = Math.max(...lines.map(line => line.length));
+  const width = Math.max(50, 10 * longestLine);
+  const height = 25 * lines.length + 20;
+  const body = Bodies.rectangle(
+    msg.x || WIDTH / 2,
+    msg.y || HEIGHT / 2,
+    width,
+    height,
+    {
+      friction: 0.9,
+      frictionAir: 0.02,
+      restitution: 0.1,
+      label: msg.text,
+    }
+  );
+  body.messageId = msg._id.toString();
+  body.userId = msg.userId;
+  body.color1 = msg.color1;
+  body.color2 = msg.color2;
+  body.customWidth = width;
+  body.customHeight = height;
+  
+  Composite.add(world, body);
+  bodies[body.messageId] = body;
+  console.log(`Created body for message ${body.messageId}`);
+}
 
+// Helper: load messages for a room
+async function loadMessagesForRoom(room, socket) {
+  try {
+    const messages = await Message.find({ room });
+    for (const msg of messages) {
+      if (!bodies[msg._id]) {
+        await createMessageBody(msg);
+      }
+    }
+    socket.emit('loadMessages', messages);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// --- Socket.IO Handlers ---
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  // Create a virtual mouse body for this client (a small static circle)
+  const mouseBody = Bodies.circle(-100, -100, 5, { isSensor: true, isStatic: true });
+  mouseBodies[socket.id] = mouseBody;
+  Composite.add(world, mouseBody);
+
+  socket.on('joinRoom', async ({ room, userId }) => {
+    // Enforce max users per room (4)
+    const clients = io.sockets.adapter.rooms.get(room);
+    if (clients && clients.size >= 4) {
+      socket.emit('roomError', 'max users in room');
+      return;
+    }
+    socket.join(room);
+    console.log(`Socket ${socket.id} (uid: ${userId}) joined room ${room}`);
+    await loadMessagesForRoom(room, socket);
+  });
+
+  socket.on('newMessage', async (data) => {
+    try {
+      const msg = new Message({
+        room: data.room,
+        text: data.text,
+        x: data.x,
+        y: data.y,
+        userId: data.userId,
+        color1: data.color1,
+        color2: data.color2,
+      });
+      const saved = await msg.save();
+      await createMessageBody(saved);
+      io.to(data.room).emit('newMessage', saved);
+    } catch (err) {
+      console.error(err);
+    }
+  });
+
+  // Start drag: create a constraint between virtual mouse and the block
+  socket.on('startDrag', async (data) => {
+    // data: { room, messageId, userId, x, y }
+    try {
+      const msg = await Message.findById(data.messageId);
+      if (!msg || msg.userId !== data.userId) {
+        console.warn(`Socket ${socket.id} attempted to drag message ${data.messageId} without ownership.`);
+        return;
+      }
+      const blockBody = bodies[data.messageId];
+      if (!blockBody) {
+        console.warn(`No body found for message ${data.messageId}`);
+        return;
+      }
+      // Move the virtual mouse to the start drag position
+      const mb = mouseBodies[socket.id];
+      if (mb) {
+        Body.setPosition(mb, { x: data.x, y: data.y });
+      }
+      // Create a constraint between the virtual mouse and the block
+      const c = Constraint.create({
+        bodyA: mb,
+        bodyB: blockBody,
+        stiffness: 0.02,
+        damping: 0.1,
+        length: Matter.Vector.magnitude(Matter.Vector.sub(mb.position, blockBody.position))
+      });
+      Composite.add(world, c);
+      mouseConstraints[socket.id] = c;
+      console.log(`Socket ${socket.id} started dragging message ${data.messageId}`);
+    } catch (err) {
+      console.error(err);
+    }
+  });
+
+  // Drag move: update the virtual mouse position
+  socket.on('dragMove', (data) => {
+    // data: { x, y }
+    const mb = mouseBodies[socket.id];
+    if (mb) {
+      Body.setPosition(mb, { x: data.x, y: data.y });
+    }
+  });
+
+  // End drag: remove the constraint
+  socket.on('endDrag', () => {
+    const c = mouseConstraints[socket.id];
+    if (c) {
+      Composite.remove(world, c);
+      delete mouseConstraints[socket.id];
+      console.log(`Socket ${socket.id} ended drag.`);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+    // Clean up constraint and mouse body
+    const c = mouseConstraints[socket.id];
+    if (c) {
+      Composite.remove(world, c);
+      delete mouseConstraints[socket.id];
+    }
+    const mb = mouseBodies[socket.id];
+    if (mb) {
+      Composite.remove(world, mb);
+      delete mouseBodies[socket.id];
+    }
+  });
+});
+
+// --- REST Endpoints for User Colors ---
 app.get('/api/user/:userId', async (req, res) => {
   const userId = req.params.userId;
   try {
@@ -210,79 +281,7 @@ app.post('/api/user/:userId/colors', async (req, res) => {
   }
 });
 
-io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
-
-  socket.on('joinRoom', async ({ room, userId }) => {
-    const clients = io.sockets.adapter.rooms.get(room);
-    if (clients && clients.size >= 4) {
-      socket.emit('roomError', 'max users in room');
-      return;
-    }
-    socket.join(room);
-    console.log(`User ${socket.id} (uid: ${userId}) joined room ${room}`);
-    // Load messages for the room and create bodies.
-    const messages = await Message.find({ room });
-    for (const msg of messages) {
-      if (!bodies[msg._id]) {
-        await createMessageBody(msg);
-      }
-    }
-    socket.emit('loadMessages', messages);
-  });
-
-  socket.on('newMessage', async (data) => {
-    try {
-      // Create new message with full opacity.
-      const msg = new Message({
-        room: data.room,
-        text: data.text,
-        x: data.x,
-        y: data.y,
-        userId: data.userId,
-        color1: data.color1,
-        color2: data.color2,
-        opacity: DEFAULT_OPACITY,
-      });
-      const saved = await msg.save();
-      await createMessageBody(saved);
-      // Broadcast the new message.
-      io.to(data.room).emit('newMessage', saved);
-      // Update opacity for all previous messages.
-      updateOpacityForRoom(data.room);
-    } catch (err) {
-      console.error(err);
-    }
-  });
-
-
-   // Drag event – only allow owner's control
-   socket.on('dragBlock', async (data) => {
-    const { messageId, x, y, userId, room } = data;
-    try {
-      const msg = await Message.findById(messageId);
-      if (!msg || msg.userId !== userId) {
-        console.warn(`User ${userId} attempted to move message ${messageId} they don't own`);
-        return;
-      }
-      const body = bodies[messageId];
-      if (body) {
-        Matter.Body.setPosition(body, { x, y });
-        Matter.Body.setVelocity(body, { x: 0, y: 0 });
-      }
-      msg.x = x;
-      msg.y = y;
-      await msg.save();
-    } catch (err) {
-      console.error(err);
-    }
-  });
-
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-  });
-});
-
-http.listen(3000, () => {
-  console.log('Server listening on port 3000');
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
 });
