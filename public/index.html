@@ -25,6 +25,18 @@
       .color-pickers label {
         margin-right: 5px;
       }
+      .players-list {
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .player-item {
+        padding: 5px 10px;
+        border-radius: 4px;
+        color: white;
+        text-align: center;
+      }
     </style>
   </head>
   <body>
@@ -36,7 +48,7 @@
           Your Gradient
         </div>
 
-        <!-- Two color pickers, plus a randomize button -->
+        <!-- Two color pickers plus a randomize button -->
         <div class="color-pickers">
           <label for="colorPicker1">Color 1:</label>
           <input type="color" id="colorPicker1" value="#ff0000" />
@@ -47,7 +59,7 @@
           <button id="randomizeBtn">Randomize Colors</button>
         </div>
 
-        <!-- Display of the current colors in text form -->
+        <!-- Display current gradient text -->
         <div>
           Current Gradient: <span id="currentColors" style="font-weight:bold;"></span>
         </div>
@@ -86,60 +98,35 @@
         // Sync the color pickers.
         document.getElementById('colorPicker1').value = userColors.color1;
         document.getElementById('colorPicker2').value = userColors.color2;
-        console.log("Updated gradient display:", userColors);
+        
+        // Store colors in localStorage for persistence
+        localStorage.setItem('userColor1', userColors.color1);
+        localStorage.setItem('userColor2', userColors.color2);
       }
 
-      // Fetch current user colors from MongoDB.
-      fetch(`/api/user/${userId}`)
-        .then(res => res.json())
-        .then(data => {
-          console.log("Fetched user data from DB:", data);
-          userColors.color1 = data.color1;
-          userColors.color2 = data.color2;
-          updateGradientDisplay();
-        })
-        .catch(err => console.error(err));
-
-      // Update user colors on the server (MongoDB).
-      function updateColorsOnServer() {
-        fetch(`/api/user/${userId}/colors`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            color1: userColors.color1,
-            color2: userColors.color2
-          })
-        })
-          .then(res => res.json())
-          .then(data => {
-            console.log("Updated user data on DB:", data);
-            userColors = data;
-            updateGradientDisplay();
-          })
-          .catch(err => console.error(err));
+      // Load colors from localStorage if available
+      if (localStorage.getItem('userColor1') && localStorage.getItem('userColor2')) {
+        userColors.color1 = localStorage.getItem('userColor1');
+        userColors.color2 = localStorage.getItem('userColor2');
       }
+      
+      updateGradientDisplay();
 
       // Event listeners for the color pickers.
       document.getElementById('colorPicker1').addEventListener('input', (e) => {
         userColors.color1 = e.target.value;
-        console.log("ColorPicker1 changed:", userColors.color1);
         updateGradientDisplay();
-        updateColorsOnServer();
       });
       document.getElementById('colorPicker2').addEventListener('input', (e) => {
         userColors.color2 = e.target.value;
-        console.log("ColorPicker2 changed:", userColors.color2);
         updateGradientDisplay();
-        updateColorsOnServer();
       });
 
       // Randomize colors.
       document.getElementById('randomizeBtn').addEventListener('click', () => {
         userColors.color1 = randomColor();
         userColors.color2 = randomColor();
-        console.log("Randomized colors:", userColors);
         updateGradientDisplay();
-        updateColorsOnServer();
       });
 
       // Create Room: generate a random room ID.
