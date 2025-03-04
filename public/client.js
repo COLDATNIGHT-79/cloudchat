@@ -88,7 +88,7 @@ const artifacts = {};
 let artifactSeed = Math.random();
 
 // --- NEW VARIABLE: CONFIGURABLE NUMBER OF FANS ---
-let numberOfFans = 5; // Default to 2 fans - YOU CAN CHANGE THIS VALUE
+let numberOfFans = 1; // Default to 2 fans - YOU CAN CHANGE THIS VALUE
 
 // Seeded random function
 function seededRandom(seed) {
@@ -97,7 +97,7 @@ function seededRandom(seed) {
 }
 
 // Particle system for fan effects
-const particles = [];
+const fanParticles = [];
 class Particle {
  constructor(x, y, vx, vy) {
   this.x = x;
@@ -292,7 +292,50 @@ const bgColors = [
  'rgba(87, 61, 28, 0.3)',  // Warm brown
  'rgba(92, 45, 70, 0.3)'   // Burgundy
 ];
+// Add to client.js
+class ParticleSystem {
+    constructor() {
+        this.particles = [];
+        this.maxParticles = 100;
+        
+        for(let i = 0; i < this.maxParticles; i++) {
+            this.particles.push({
+                x: Math.random() * WIDTH,
+                y: Math.random() * HEIGHT,
+                radius: Math.random() * 3,
+                speed: Math.random() * 0.5 + 0.2,
+                angle: Math.random() * Math.PI * 2,
+                alpha: Math.random() * 0.5 + 0.1
+            });
+        }
+    }
 
+    update() {
+        this.particles.forEach(p => {
+            p.x += Math.cos(p.angle) * p.speed;
+            p.y += Math.sin(p.angle) * p.speed * 0.5;
+            
+            if(p.x < 0 || p.x > WIDTH) p.angle = Math.PI - p.angle;
+            if(p.y < 0 || p.y > HEIGHT) p.angle = -p.angle;
+        });
+    }
+
+    draw(ctx) {
+        this.particles.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(0,150,255,${p.alpha})`;
+            ctx.fill();
+        });
+    }
+}
+
+// Initialize in client.js
+const particles = new ParticleSystem();
+
+// Add to render loop
+particles.update();
+particles.draw(ctx);
 class BackgroundRipple {
  constructor(x, y, impact) {
   this.x = x;
@@ -547,13 +590,13 @@ function render() {
 
 
  // Update and draw particles
- for (let i = particles.length - 1; i >= 0; i--) {
-  if (!particles[i].update()) {
-   particles.splice(i, 1);
+for (let i = fanParticles.length - 1; i >= 0; i--) {
+  if (!fanParticles[i].update()) {
+    fanParticles.splice(i, 1);
   } else {
-   particles[i].draw(ctx);
+    fanParticles[i].draw(ctx);
   }
- }
+}
 
  requestAnimationFrame(render);
 }
@@ -587,12 +630,12 @@ Events.on(engine, 'afterUpdate', () => {
    // Generate more particles for the fan
    if (Math.random() < 0.5) {
     for (let i = 0; i < 5; i++) {
-     particles.push(new Particle(
+    fanParticles.push(new Particle(
       artifact.position.x + (Math.random() - 0.5) * 80,
       artifact.position.y,
       (Math.random() - 0.5) * 2,
       -Math.random() * 5 - 3
-     ));
+    ));
     }
    }
   }

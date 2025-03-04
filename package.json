@@ -1,5 +1,7 @@
 {
   "dependencies": {
+    "dotenv": "^16.4.7",
+    "dotnet": "^1.1.4",
     "express": "^4.21.2",
     "matter-js": "^0.20.0",
     "mongoose": "^8.10.1",

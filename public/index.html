@@ -1,147 +1,285 @@
 <!DOCTYPE html>
 <html>
-  <head>
+<head>
     <meta charset="UTF-8" />
     <title>Lobby</title>
     <link rel="stylesheet" href="style.css" />
     <style>
-      .gradient-display {
-        width: 300px;
-        height: 40px;
-        margin-bottom: 10px;
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-        border: 1px solid #444;
-      }
-      .color-pickers {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        margin-bottom: 10px;
-      }
-      .color-pickers label {
-        margin-right: 5px;
-      }
-      .players-list {
-        margin-top: 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-      }
-      .player-item {
-        padding: 5px 10px;
-        border-radius: 4px;
-        color: white;
-        text-align: center;
-      }
+        /* New pixel font */
+        @font-face {
+            font-family: 'Pixel';
+            src: url('https://fonts.gstatic.com/s/pressstart2p/v14/e3t4euO8T-267oIAQAu6jDQyK3nVivM.woff2') format('woff2');
+        }
+
+        body {
+            margin: 0;
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Pixel', sans-serif;
+        }
+
+        /* Animated Background */
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: radial-gradient(circle, #001122, #000);
+            animation: bgPulse 10s infinite alternate;
+        }
+
+        @keyframes bgPulse {
+            0% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+
+        .lobby {
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            padding: 30px;
+            background: rgba(10, 10, 10, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(0, 150, 255, 0.1);
+            position: relative;
+            z-index: 1;
+        }
+
+        .animated-title {
+            font-size: 3rem;
+            text-transform: uppercase;
+            background: linear-gradient(45deg, #00f7ff, #0066ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+        }
+
+        .gradient-display {
+            width: 100%;
+            height: 50px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: #fff;
+        }
+
+        .color-pickers {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .color-picker-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            color: #fff;
+        }
+
+        .color-picker-label input {
+            width: 100%;
+            height: 40px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .glass-button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 20px;
+            font-size: 1rem;
+            color: #fff;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Pixel', sans-serif;
+        }
+
+        .glass-button:hover {
+            background: rgba(0, 150, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 150, 255, 0.2);
+        }
+
+        .neon-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(0, 150, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(30, 30, 30, 0.8);
+            color: #fff;
+            font-family: 'Pixel', sans-serif;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .neon-input:focus {
+            border-color: #00f7ff;
+            box-shadow: 0 0 15px rgba(0, 150, 255, 0.3);
+            outline: none;
+        }
     </style>
-  </head>
-  <body>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="animated-bg"></div>
+
     <div class="lobby">
-      <h1>Welcome to Chatroom Physics</h1>
-      <div class="actions">
-        <!-- Combined Gradient Display -->
-        <div class="gradient-display" id="gradientDisplay">
-          Your Gradient
+        <h1 class="animated-title">DROP IT</h1>
+
+        <!-- Gradient Display -->
+        <div id="gradientDisplay" class="gradient-display">
+            Your Gradient
         </div>
 
-        <!-- Two color pickers plus a randomize button -->
+        <!-- Color Pickers -->
         <div class="color-pickers">
-          <label for="colorPicker1">Color 1:</label>
-          <input type="color" id="colorPicker1" value="#ff0000" />
-
-          <label for="colorPicker2">Color 2:</label>
-          <input type="color" id="colorPicker2" value="#0000ff" />
-
-          <button id="randomizeBtn">Randomize Colors</button>
+            <label class="color-picker-label">
+                Color 1
+                <input type="color" id="colorPicker1" value="#00f7ff">
+            </label>
+            <label class="color-picker-label">
+                Color 2
+                <input type="color" id="colorPicker2" value="#0066ff">
+            </label>
         </div>
 
-        <!-- Display current gradient text -->
-        <div>
-          Current Gradient: <span id="currentColors" style="font-weight:bold;"></span>
+        <!-- Randomize Button -->
+        <button id="randomizeBtn" class="glass-button" style="margin-bottom: 20px;">
+            🎲 Randomize Colors
+        </button>
+
+        <!-- Create Room Button -->
+        <button id="createRoomBtn" class="glass-button">
+             Create New Room
+        </button>
+
+        <!-- Divider -->
+        <div style="margin: 20px 0; position: relative">
+            <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 20px 0"></div>
+            <div style="position: absolute; left: 50%; top: -10px; transform: translateX(-50%); 
+                      background: #0a0a0a; padding: 0 15px; color: #666">
+                OR
+            </div>
         </div>
 
-        <button id="createRoomBtn">Create Room</button>
-        <div>
-          <input type="text" id="joinRoomInput" placeholder="Enter room ID" />
-          <button id="joinRoomBtn">Join Room</button>
-        </div>
-      </div>
+        <!-- Join Room Input -->
+        <input type="text" id="joinRoomInput" class="neon-input" 
+               placeholder="Room Code">
+
+        <!-- Join Room Button -->
+        <button id="joinRoomBtn" class="glass-button">
+            Join Existing Room
+        </button>
     </div>
 
     <script>
-      // Helper: Generate random hex color.
-      function randomColor() {
-        return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
-      }
-
-      // Get or create a persistent userId.
-      let userId = localStorage.getItem('userId');
-      if (!userId) {
-        userId = Math.random().toString(36).substring(2, 10);
-        localStorage.setItem('userId', userId);
-      }
-      console.log("UserId:", userId);
-
-      // User colors state.
-      let userColors = { color1: '#ff0000', color2: '#0000ff' };
-
-      // Update the gradient display.
-      function updateGradientDisplay() {
-        const gradDiv = document.getElementById('gradientDisplay');
-        gradDiv.style.background = `linear-gradient(45deg, ${userColors.color1}, ${userColors.color2})`;
-        const currentColorsSpan = document.getElementById('currentColors');
-        currentColorsSpan.textContent = `${userColors.color1} to ${userColors.color2}`;
-        // Sync the color pickers.
-        document.getElementById('colorPicker1').value = userColors.color1;
-        document.getElementById('colorPicker2').value = userColors.color2;
-        
-        // Store colors in localStorage for persistence
-        localStorage.setItem('userColor1', userColors.color1);
-        localStorage.setItem('userColor2', userColors.color2);
-      }
-
-      // Load colors from localStorage if available
-      if (localStorage.getItem('userColor1') && localStorage.getItem('userColor2')) {
-        userColors.color1 = localStorage.getItem('userColor1');
-        userColors.color2 = localStorage.getItem('userColor2');
-      }
-      
-      updateGradientDisplay();
-
-      // Event listeners for the color pickers.
-      document.getElementById('colorPicker1').addEventListener('input', (e) => {
-        userColors.color1 = e.target.value;
-        updateGradientDisplay();
-      });
-      document.getElementById('colorPicker2').addEventListener('input', (e) => {
-        userColors.color2 = e.target.value;
-        updateGradientDisplay();
-      });
-
-      // Randomize colors.
-      document.getElementById('randomizeBtn').addEventListener('click', () => {
-        userColors.color1 = randomColor();
-        userColors.color2 = randomColor();
-        updateGradientDisplay();
-      });
-
-      // Create Room: generate a random room ID.
-      document.getElementById('createRoomBtn').addEventListener('click', () => {
-        const roomId = Math.random().toString(36).substring(2, 8);
-        window.location.href = `/room.html?room=${roomId}`;
-      });
-
-      // Join Room: navigate using provided room ID.
-      document.getElementById('joinRoomBtn').addEventListener('click', () => {
-        const roomId = document.getElementById('joinRoomInput').value.trim();
-        if (roomId) {
-          window.location.href = `/room.html?room=${roomId}`;
+        // Helper: Generate random hex color.
+        function randomColor() {
+            return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
         }
-      });
+
+        // Generate random gradient for user
+        function generateRandomGradient() {
+            return {
+                color1: randomColor(),
+                color2: randomColor()
+            };
+        }
+
+        // User colors state.
+        let userColors = generateRandomGradient();
+
+        // Update the gradient display.
+        function updateGradientDisplay() {
+            const gradDiv = document.getElementById('gradientDisplay');
+            gradDiv.style.background = `linear-gradient(45deg, ${userColors.color1}, ${userColors.color2})`;
+            document.getElementById('colorPicker1').value = userColors.color1;
+            document.getElementById('colorPicker2').value = userColors.color2;
+        }
+
+        // Event listeners for the color pickers.
+        document.getElementById('colorPicker1').addEventListener('input', (e) => {
+            userColors.color1 = e.target.value;
+            updateGradientDisplay();
+        });
+
+        document.getElementById('colorPicker2').addEventListener('input', (e) => {
+            userColors.color2 = e.target.value;
+            updateGradientDisplay();
+        });
+
+        // Randomize colors
+        document.getElementById('randomizeBtn').addEventListener('click', () => {
+            userColors = generateRandomGradient();
+            updateGradientDisplay();
+        });
+
+        // Create Room: generate a random room ID.
+        document.getElementById('createRoomBtn').addEventListener('click', () => {
+            console.log("Create room button clicked");
+            const roomId = Math.random().toString(36).substring(2, 8);
+            
+            // Save colors to localStorage
+            localStorage.setItem('userColor1', userColors.color1);
+            localStorage.setItem('userColor2', userColors.color2);
+            
+            // Navigate to room.html with parameters
+            try {
+                const url = `room.html?room=${roomId}&color1=${encodeURIComponent(userColors.color1)}&color2=${encodeURIComponent(userColors.color2)}`;
+                console.log("Navigating to:", url);
+                window.location.href = url;
+            } catch (e) {
+                console.error("Navigation error:", e);
+                alert("Error navigating to room: " + e.message);
+            }
+        });
+
+        // Join Room: navigate using provided room ID.
+        document.getElementById('joinRoomBtn').addEventListener('click', () => {
+            console.log("Join room button clicked");
+            const roomId = document.getElementById('joinRoomInput').value.trim();
+            if (roomId) {
+                // Save colors to localStorage
+                localStorage.setItem('userColor1', userColors.color1);
+                localStorage.setItem('userColor2', userColors.color2);
+                
+                // Navigate to room.html with parameters
+                try {
+                    const url = `room.html?room=${encodeURIComponent(roomId)}&color1=${encodeURIComponent(userColors.color1)}&color2=${encodeURIComponent(userColors.color2)}`;
+                    console.log("Navigating to:", url);
+                    window.location.href = url;
+                } catch (e) {
+                    console.error("Navigation error:", e);
+                    alert("Error navigating to room: " + e.message);
+                }
+            } else {
+                alert('Please enter a room code!');
+            }
+        });
+
+        // Initialize gradient display
+        updateGradientDisplay();
     </script>
-  </body>
+</body>
 </html>
