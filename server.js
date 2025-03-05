@@ -179,7 +179,7 @@ io.on('connection', (socket) => {
             } else {
                 console.log(`User ${socket.id} tried to manipulate message ${data.messageId} they don't own.`);
             }
-        }
+        }that is happening 
     });
     
 

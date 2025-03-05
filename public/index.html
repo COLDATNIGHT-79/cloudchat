@@ -10,7 +10,6 @@
             font-family: 'Pixel';
             src: url('https://fonts.gstatic.com/s/pressstart2p/v14/e3t4euO8T-267oIAQAu6jDQyK3nVivM.woff2') format('woff2');
         }
-
         body {
             margin: 0;
             background: #0a0a0a;
@@ -21,7 +20,6 @@
             overflow: hidden;
             font-family: 'Pixel', sans-serif;
         }
-
         /* Animated Background */
         .animated-bg {
             position: fixed;
@@ -33,12 +31,10 @@
             background: radial-gradient(circle, #001122, #000);
             animation: bgPulse 10s infinite alternate;
         }
-
         @keyframes bgPulse {
             0% { opacity: 0.8; }
             100% { opacity: 1; }
         }
-
         .lobby {
             text-align: center;
             max-width: 500px;
@@ -51,7 +47,6 @@
             position: relative;
             z-index: 1;
         }
-
         .animated-title {
             font-size: 3rem;
             text-transform: uppercase;
@@ -60,7 +55,6 @@
             -webkit-text-fill-color: transparent;
             margin-bottom: 20px;
         }
-
         .gradient-display {
             width: 100%;
             height: 50px;
@@ -73,14 +67,12 @@
             font-size: 0.9rem;
             color: #fff;
         }
-
         .color-pickers {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             margin: 20px 0;
         }
-
         .color-picker-label {
             display: flex;
             flex-direction: column;
@@ -88,7 +80,6 @@
             gap: 5px;
             color: #fff;
         }
-
         .color-picker-label input {
             width: 100%;
             height: 40px;
@@ -96,13 +87,11 @@
             border-radius: 5px;
             cursor: pointer;
         }
-
         .actions {
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
-
         .glass-button {
             background: rgba(255, 255, 255, 0.1);
             border: 2px solid rgba(255, 255, 255, 0.2);
@@ -114,13 +103,11 @@
             transition: all 0.3s ease;
             font-family: 'Pixel', sans-serif;
         }
-
         .glass-button:hover {
             background: rgba(0, 150, 255, 0.3);
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 150, 255, 0.2);
         }
-
         .neon-input {
             width: 100%;
             padding: 10px;
@@ -132,7 +119,6 @@
             font-size: 0.9rem;
             margin-bottom: 10px;
         }
-
         .neon-input:focus {
             border-color: #00f7ff;
             box-shadow: 0 0 15px rgba(0, 150, 255, 0.3);
@@ -186,7 +172,6 @@
         <!-- Join Room Input -->
         <input type="text" id="joinRoomInput" class="neon-input" 
                placeholder="Room Code">
-
         <!-- Join Room Button -->
         <button id="joinRoomBtn" class="glass-button">
             Join Existing Room
@@ -194,92 +179,104 @@
     </div>
 
     <script>
-        // Helper: Generate random hex color.
-        function randomColor() {
-            return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
-        }
+      // Helper function to generate a 5-character room code (all uppercase)
+      function generateRoomCode() {
+          let code = '';
+          const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+          for (let i = 0; i < 5; i++) {
+              code += characters.charAt(Math.floor(Math.random() * characters.length));
+          }
+          return code;
+      }
 
-        // Generate random gradient for user
-        function generateRandomGradient() {
-            return {
-                color1: randomColor(),
-                color2: randomColor()
-            };
-        }
+      // Helper function to generate random hex color.
+      function randomColor() {
+          return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+      }
 
-        // User colors state.
-        let userColors = generateRandomGradient();
+      // Generate random gradient for user
+      function generateRandomGradient() {
+          return {
+              color1: randomColor(),
+              color2: randomColor()
+          };
+      }
 
-        // Update the gradient display.
-        function updateGradientDisplay() {
-            const gradDiv = document.getElementById('gradientDisplay');
-            gradDiv.style.background = `linear-gradient(45deg, ${userColors.color1}, ${userColors.color2})`;
-            document.getElementById('colorPicker1').value = userColors.color1;
-            document.getElementById('colorPicker2').value = userColors.color2;
-        }
+      // User colors state.
+      let userColors = generateRandomGradient();
 
-        // Event listeners for the color pickers.
-        document.getElementById('colorPicker1').addEventListener('input', (e) => {
-            userColors.color1 = e.target.value;
-            updateGradientDisplay();
-        });
+      // Update the gradient display.
+      function updateGradientDisplay() {
+          const gradDiv = document.getElementById('gradientDisplay');
+          gradDiv.style.background = `linear-gradient(45deg, ${userColors.color1}, ${userColors.color2})`;
+          document.getElementById('colorPicker1').value = userColors.color1;
+          document.getElementById('colorPicker2').value = userColors.color2;
+      }
 
-        document.getElementById('colorPicker2').addEventListener('input', (e) => {
-            userColors.color2 = e.target.value;
-            updateGradientDisplay();
-        });
+      // Event listeners for the color pickers.
+      document.getElementById('colorPicker1').addEventListener('input', (e) => {
+          userColors.color1 = e.target.value;
+          updateGradientDisplay();
+      });
 
-        // Randomize colors
-        document.getElementById('randomizeBtn').addEventListener('click', () => {
-            userColors = generateRandomGradient();
-            updateGradientDisplay();
-        });
+      document.getElementById('colorPicker2').addEventListener('input', (e) => {
+          userColors.color2 = e.target.value;
+          updateGradientDisplay();
+      });
 
-        // Create Room: generate a random room ID.
-        document.getElementById('createRoomBtn').addEventListener('click', () => {
-            console.log("Create room button clicked");
-            const roomId = Math.random().toString(36).substring(2, 8);
-            
-            // Save colors to localStorage
-            localStorage.setItem('userColor1', userColors.color1);
-            localStorage.setItem('userColor2', userColors.color2);
-            
-            // Navigate to room.html with parameters
-            try {
-                const url = `room.html?room=${roomId}&color1=${encodeURIComponent(userColors.color1)}&color2=${encodeURIComponent(userColors.color2)}`;
-                console.log("Navigating to:", url);
-                window.location.href = url;
-            } catch (e) {
-                console.error("Navigation error:", e);
-                alert("Error navigating to room: " + e.message);
-            }
-        });
+      // Randomize colors
+      document.getElementById('randomizeBtn').addEventListener('click', () => {
+          userColors = generateRandomGradient();
+          updateGradientDisplay();
+      });
 
-        // Join Room: navigate using provided room ID.
-        document.getElementById('joinRoomBtn').addEventListener('click', () => {
-            console.log("Join room button clicked");
-            const roomId = document.getElementById('joinRoomInput').value.trim();
-            if (roomId) {
-                // Save colors to localStorage
-                localStorage.setItem('userColor1', userColors.color1);
-                localStorage.setItem('userColor2', userColors.color2);
-                
-                // Navigate to room.html with parameters
-                try {
-                    const url = `room.html?room=${encodeURIComponent(roomId)}&color1=${encodeURIComponent(userColors.color1)}&color2=${encodeURIComponent(userColors.color2)}`;
-                    console.log("Navigating to:", url);
-                    window.location.href = url;
-                } catch (e) {
-                    console.error("Navigation error:", e);
-                    alert("Error navigating to room: " + e.message);
-                }
-            } else {
-                alert('Please enter a room code!');
-            }
-        });
+      // Create Room: generate a random room ID.
+      document.getElementById('createRoomBtn').addEventListener('click', () => {
+          console.log("Create room button clicked");
+          const roomId = generateRoomCode();
+          
+          // Save colors to localStorage
+          localStorage.setItem('userColor1', userColors.color1);
+          localStorage.setItem('userColor2', userColors.color2);
+          
+          // Navigate to room.html with parameters
+          try {
+              const url = `room.html?room=${roomId}&color1=${encodeURIComponent(userColors.color1)}&color2=${encodeURIComponent(userColors.color2)}`;
+              console.log("Navigating to:", url);
+              window.location.href = url;
+          } catch (e) {
+              console.error("Navigation error:", e);
+              alert("Error navigating to room: " + e.message);
+          }
+      });
 
-        // Initialize gradient display
-        updateGradientDisplay();
+      // Join Room: navigate using provided room ID.
+      document.getElementById('joinRoomBtn').addEventListener('click', () => {
+          console.log("Join room button clicked");
+          let roomId = document.getElementById('joinRoomInput').value.trim();
+          if (roomId) {
+              // Convert input to uppercase to match room codes
+              roomId = roomId.toUpperCase();
+              // Save colors to localStorage
+              localStorage.setItem('userColor1', userColors.color1);
+              localStorage.setItem('userColor2', userColors.color2);
+              
+              // Navigate to room.html with parameters
+              try {
+                  const url = `room.html?room=${encodeURIComponent(roomId)}&color1=${encodeURIComponent(userColors.color1)}&color2=${encodeURIComponent(userColors.color2)}`;
+                  console.log("Navigating to:", url);
+                  window.location.href = url;
+              } catch (e) {
+                  console.error("Navigation error:", e);
+                  alert("Error navigating to room: " + e.message);
+              }
+          } else {
+              alert('Please enter a room code!');
+          }
+      });
+
+      // Initialize gradient display
+      updateGradientDisplay();
     </script>
 </body>
 </html>
