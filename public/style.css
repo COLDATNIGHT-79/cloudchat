@@ -175,4 +175,12 @@ canvas {
     width: 100% !important;
     height: auto !important;
   }
+  .chat-history-button {
+    position: absolute;
+    right: 0;   /* Move to screen edge */
+    top: 10px;  /* Adjust vertical position */
+    padding: 8px;
+    border-radius: 5px;
+}
+
 }

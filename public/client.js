@@ -8,7 +8,18 @@ if ('serviceWorker' in navigator) {
 }
 
 const socket = io();
-// Register the Service Worker for PWA functionality
+
+// Ensure WebSockets work in PWA mode
+socket.on('message', (data) => {
+    console.log("New message received:", data);
+    updateChat(data);  // Function that updates chat in the UI
+});
+
+// Reload page when new messages arrive (fallback if WebSockets fail)
+socket.on('force-refresh', () => {
+    window.location.reload();
+});
+
 
 // Get or generate a unique userId.
 let userId = localStorage.getItem('userId');
