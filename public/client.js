@@ -1,6 +1,14 @@
 // client.js
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(() => console.log('Service Worker registered successfully.'))
+      .catch((err) => console.log('Service Worker registration failed:', err));
+  });
+}
 
 const socket = io();
+// Register the Service Worker for PWA functionality
 
 // Get or generate a unique userId.
 let userId = localStorage.getItem('userId');
