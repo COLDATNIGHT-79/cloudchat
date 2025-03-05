@@ -228,20 +228,7 @@ socket.on('playerList', (players) => {
 });
 
 
-// When a new message arrives: fade out existing messages, then add the new one.
-// When a new message arrives: fade out only messages from the same user
-socket.on('newMessage', (msg) => {
- // Lower opacity only for blocks from the same user
- for (let id in blocks) {
-  let block = blocks[id];
-  if (block.userId === msg.userId) { // Modified condition: Only reduce opacity of messages from the same user.
-   block.targetOpacity = Math.max(0, block.targetOpacity - 10);
-  }
- }
- const blockBody = createBlock(msg);
- blocks[msg._id] = blockBody;
- World.add(world, blockBody);
-});
+
 
 // When a block's opacity is updated (from server command).
 socket.on('updateOpacity', (data) => {
@@ -768,39 +755,40 @@ let playerIndex = 0; // Will be set when joining room
 
 // Modify sendMessage function to use player's spawn position
 // Helper function to add a message to the side log
-function addMessageToLog(msg) {
-  const log = document.getElementById('messageLog');
+// Helper function to add a message to the side log
+// Updated helper function to add a message to the drawer (log)
+// Helper function to add a message to the drawer
+function addMessageToDrawer(msg) {
+  const drawer = document.getElementById('messageDrawer');
   const messageDiv = document.createElement('div');
   messageDiv.className = 'logMessage';
-  // Use the timestamp if available, or fallback to current time
+  // Use the timestamp if available, otherwise use current time.
   const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
 
-  // Create a color indicator using the message's gradient colors
+  // Create a color indicator using the message's gradient colors.
   const colorIndicator = document.createElement('span');
   colorIndicator.className = 'colorIndicator';
   colorIndicator.style.background = `linear-gradient(45deg, ${msg.color1}, ${msg.color2})`;
 
   messageDiv.innerHTML = `<strong>${time}</strong> - ${msg.text}`;
   messageDiv.prepend(colorIndicator);
-  log.appendChild(messageDiv);
-  // Scroll to the bottom so the latest message is visible
-  log.scrollTop = log.scrollHeight;
+  drawer.appendChild(messageDiv);
+  // Scroll to the bottom so the latest message is visible.
+  drawer.scrollTop = drawer.scrollHeight;
 }
 
-// When loading existing messages from the server, add them to the log as well as the canvas
+// Update socket events to use the new drawer for logging messages.
 socket.on('loadMessages', (messages) => {
   messages.forEach(msg => {
     const blockBody = createBlock(msg);
     blocks[msg._id] = blockBody;
     World.add(world, blockBody);
-    // Add each loaded message to the log
-    addMessageToLog(msg);
+    addMessageToDrawer(msg);
   });
 });
 
-// When a new message is received, update the canvas and add to the log
 socket.on('newMessage', (msg) => {
-  // Lower opacity only for messages from the same user (existing code)
+  // Reduce opacity for messages from the same user.
   for (let id in blocks) {
     let block = blocks[id];
     if (block.userId === msg.userId) { 
@@ -810,9 +798,15 @@ socket.on('newMessage', (msg) => {
   const blockBody = createBlock(msg);
   blocks[msg._id] = blockBody;
   World.add(world, blockBody);
-  // Add the new message to the side log
-  addMessageToLog(msg);
+  addMessageToDrawer(msg);
 });
+
+// Toggle the message drawer when the button is clicked.
+document.getElementById('toggleDrawer').addEventListener('click', () => {
+  const drawer = document.getElementById('messageDrawer');
+  drawer.classList.toggle('open');
+});
+
 
 function sendMessage() {
  const input = document.getElementById('messageInput');
