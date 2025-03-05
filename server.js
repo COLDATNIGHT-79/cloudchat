@@ -173,6 +173,7 @@ io.on('connection', (socket) => {
         const room = data.room;
         if (rooms[room] && rooms[room].messages[data.messageId]) {
             const message = rooms[room].messages[data.messageId];
+            // Only allow a client to manipulate its own block:
             if (message.sessionId === socket.id) {
                 socket.to(data.room).emit('userInput', data);
             } else {
@@ -180,6 +181,7 @@ io.on('connection', (socket) => {
             }
         }
     });
+    
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);

@@ -247,21 +247,24 @@ socket.on('removeMessage', (data) => {
 
 // When another user sends input (drag, throw, etc.)
 socket.on('userInput', (data) => {
- if (data.type === 'drag' && blocks[data.messageId]) {
-  let block = blocks[data.messageId];
-  // Only update if the input is from the owner but not ourselves
-  if (block.userId === data.userId && data.userId !== userId) {
-   Body.setPosition(block, { x: data.x, y: data.y });
-   Body.setVelocity(block, { x: 0, y: 0 });
+  if (data.type === 'drag' && blocks[data.messageId]) {
+    let block = blocks[data.messageId];
+    // Only process remote updates (ignore if this client is the owner)
+    if (block.userId === data.userId && data.userId !== userId) {
+      // Set a target position for smooth interpolation
+      block.targetPosition = { x: data.x, y: data.y };
+    }
+  } else if (data.type === 'throw' && blocks[data.messageId]) {
+    let block = blocks[data.messageId];
+    if (block.userId === data.userId && data.userId !== userId) {
+      // For throw events, update velocity immediately
+      Body.setVelocity(block, { x: data.vx, y: data.vy });
+      // Clear any target position since the throw takes effect immediately
+      delete block.targetPosition;
+    }
   }
- } else if (data.type === 'throw' && blocks[data.messageId]) {
-  let block = blocks[data.messageId];
-  // Only update if the input is from the owner but not ourselves
-  if (block.userId === data.userId && data.userId !== userId) {
-   Body.setVelocity(block, { x: data.vx, y: data.vy });
-  }
- }
 });
+
 // Background ripple/impact effect system
 const backgroundEffects = [];
 
@@ -468,6 +471,20 @@ function render() {
 
  // Draw blocks
  Object.values(blocks).forEach(block => {
+  // If a remote update set a targetPosition, smoothly move toward it.
+  if (block.targetPosition) {
+    // Use linear interpolation (lerp) to update position gradually
+    const currentPos = block.position;
+    const targetPos = block.targetPosition;
+    const lerpFactor = 0.1; // Adjust for smoothing (0.1 is gentle; higher is faster)
+    const newX = currentPos.x + (targetPos.x - currentPos.x) * lerpFactor;
+    const newY = currentPos.y + (targetPos.y - currentPos.y) * lerpFactor;
+    Body.setPosition(block, { x: newX, y: newY });
+    // If we're very close to the target, clear it
+    if (Math.abs(newX - targetPos.x) < 0.5 && Math.abs(newY - targetPos.y) < 0.5) {
+      delete block.targetPosition;
+    }
+  }
   // Smooth opacity transition with improved easing
   if (block.targetOpacity !== undefined) {
    const lerpFactor = 0.05; // Slower for smoother transitions
