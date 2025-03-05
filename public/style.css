@@ -177,10 +177,11 @@ canvas {
   }
   .chat-history-button {
     position: absolute;
-    right: 0;   /* Move to screen edge */
-    bottom: 80px;  /* Adjust vertical position */
+    right: 10px;  /* Keep it aligned to the right */
+    bottom: 80px; /* Move it lower, adjust as needed */
     padding: 8px;
     border-radius: 5px;
 }
+
 
 }
