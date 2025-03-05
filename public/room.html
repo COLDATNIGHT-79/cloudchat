@@ -4,20 +4,19 @@
   <meta charset="UTF-8">
   <title>Room</title>
   <style>
-    /* Pixel font */
+    /* -----------------------------
+       ORIGINAL STYLES (unchanged)
+    ------------------------------ */
     @font-face {
       font-family: 'Pixel';
       src: url('https://fonts.gstatic.com/s/pressstart2p/v14/e3t4euO8T-267oIAQAu6jDQyK3nVivM.woff2') format('woff2');
     }
-
     body {
       margin: 0;
-      background: #0a0a0a;
+      background: #0a1c585d;
       overflow: hidden;
       font-family: 'Pixel', sans-serif;
     }
-
-    /* Animated Background */
     .animated-bg {
       position: fixed;
       top: 0;
@@ -28,30 +27,39 @@
       background: radial-gradient(circle, #001122, #000);
       animation: bgPulse 10s infinite alternate;
     }
-
     @keyframes bgPulse {
       0% { opacity: 0.8; }
       100% { opacity: 1; }
     }
-
-    /* Animated Canvas Background */
     .canvas-container {
       position: relative;
       margin: 20px auto;
       width: 800px;
       height: 600px;
     }
-
     canvas {
       display: block;
       border-radius: 15px;
       border: 2px solid rgba(255, 255, 255, 0.1);
       box-shadow: 0 0 30px rgba(0, 150, 255, 0.1);
-      background: linear-gradient(45deg, #08091a, #0d1a2d);
+      background: linear-gradient(45deg, #c51010, #085ddd);
+      background-size: 200% 200%;
+      animation: gradientShift 10s ease infinite;
       position: relative;
       z-index: 1;
     }
 
+    @keyframes gradientShift {
+      0% {
+      background-position: 0% 50%;
+      }
+      50% {
+      background-position: 100% 50%;
+      }
+      100% {
+      background-position: 0% 50%;
+      }
+    }
     .canvas-animated-bg {
       position: absolute;
       top: 0;
@@ -64,12 +72,10 @@
       z-index: 0;
       animation: gradientMove 120s linear infinite;
     }
-
     @keyframes gradientMove {
       0% { background-position: 0 0; }
       100% { background-position: 1000px 1000px; }
     }
-
     #roomIdDisplay {
       text-align: center;
       font-size: 1.5rem;
@@ -79,24 +85,61 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       text-transform: uppercase;
+      animation: colorShift 5s infinite;
     }
 
+    @keyframes colorShift {
+      0% {
+      background-position: 0% 50%;
+      }
+      50% {
+      background-position: 100% 50%;
+      }
+      100% {
+      background-position: 0% 50%;
+      }
+    }
+
+   
+#chat {
+  width: 300px;
+  padding: 15px;
+  border-radius: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 30px rgba(0, 150, 255, 0.1);
+
+  /* KEY LINE: ensures padding/border is included in total width */
+  box-sizing: border-box;
+}
+
+#chat textarea,
+#chat button {
+  width: 100%;
+  /* Also apply box-sizing so they don't overflow from borders/padding */
+  box-sizing: border-box;
+}
+
     #chat {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
+      /* Remove original fixed positioning */
+      position: relative; /* or static */
+      bottom: auto;
+      left: auto;
+
+      /* Center it under the canvas */
+      margin: 0 auto;
+      margin-top: 20px;
+      width: 300px;  /* Adjust as needed */
       background: rgba(10, 10, 10, 0.9);
       padding: 15px;
       border-radius: 15px;
       border: 1px solid rgba(255, 255, 255, 0.1);
       box-shadow: 0 0 30px rgba(0, 150, 255, 0.1);
     }
-
     #chat textarea {
-      width: 200px;
+      width: 100%;
       height: 80px;
       background: rgba(30, 30, 30, 0.8);
-      color: #fff;
+      color: #ffffff;
       border: 1px solid rgba(0, 150, 255, 0.3);
       border-radius: 8px;
       padding: 10px;
@@ -104,13 +147,11 @@
       font-size: 0.9rem;
       resize: none;
     }
-
     #chat textarea:focus {
       border-color: #00f7ff;
       box-shadow: 0 0 15px rgba(0, 150, 255, 0.3);
       outline: none;
     }
-
     #chat button {
       display: block;
       width: 100%;
@@ -124,21 +165,86 @@
       transition: all 0.3s ease;
       font-family: 'Pixel', sans-serif;
     }
-
     #chat button:hover {
       background: rgba(0, 150, 255, 0.3);
       transform: translateY(-2px);
       box-shadow: 0 5px 15px rgba(0, 150, 255, 0.2);
+    }
+
+    /* Drawer with chat history, hidden offscreen by default */
+    #messageDrawer {
+      position: fixed;
+      top: 0;
+      right: -320px; /* hidden off-screen */
+      width: 300px;
+      height: 100vh;
+      background: rgba(30, 30, 30, 0.95);
+      color: #fff;
+      padding: 20px;
+      overflow-y: auto;
+      transition: right 0.3s ease;
+      z-index: 200;
+    }
+    #messageDrawer.open {
+      right: 0;
+    }
+    .logMessage {
+      margin-bottom: 10px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+    }
+    .logMessage span.colorIndicator {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin-right: 8px;
+      border-radius: 3px;
+    }
+
+    /* Button for toggling the drawer: changed text to clock emoji */
+    .drawer-toggle {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 210;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: right 0.3s ease;
+    }
+    /* Shift the button left when drawer is open so it doesn't overlap the chat */
+    .drawer-toggle.opened {
+      right: 340px; /* adjust if needed */
+    }
+
+    /* Responsive canvas for mobile */
+    @media (max-width: 768px) {
+      .canvas-container {
+        width: 90%;
+        height: auto;
+      }
+      canvas {
+        width: 100% !important;
+        height: auto !important;
+      }
+      /* Center chat for mobile as well */
+      #chat {
+        width: 90%;
+      }
     }
   </style>
 </head>
 <body>
   <!-- Animated Background -->
   <div class="animated-bg"></div>
-  
+
   <!-- Display Room ID -->
-  <div id="roomIdDisplay">ROOM: <span id="roomCode">XXXXXX</span></div>
-  
+  <div id="roomIdDisplay">ROOM ID: <span id="roomCode">XXXXXX</span></div>
+
   <!-- Canvas Container with animated background -->
   <div class="canvas-container">
     <div class="canvas-animated-bg"></div>
@@ -146,22 +252,35 @@
     <canvas id="world" width="800" height="600"></canvas>
   </div>
 
-  <!-- Chat box -->
+  <!-- Chat box, now centered below the canvas -->
   <div id="chat">
     <textarea id="messageInput" placeholder="Type your message..."></textarea>
     <button id="sendBtn">⚡ SEND</button>
   </div>
 
-  <!-- Include Socket.IO and client-side script -->
+  <!-- Hidden drawer for chat history -->
+  <div id="messageDrawer"></div>
+
+  <!-- Toggle button with clock emoji -->
+  <button id="toggleDrawer" class="drawer-toggle">🕒</button>
+
+  <!-- Scripts -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-
   <script src="client.js"></script>
   <script>
     // Extract and display room ID from URL
     const urlParams = new URLSearchParams(window.location.search);
     const roomId = urlParams.get('room');
     document.getElementById('roomCode').textContent = roomId || 'UNKNOWN';
+
+    // Drawer toggle logic
+    const drawer = document.getElementById('messageDrawer');
+    const toggleBtn = document.getElementById('toggleDrawer');
+    toggleBtn.addEventListener('click', () => {
+      drawer.classList.toggle('open');
+      toggleBtn.classList.toggle('opened');
+    });
   </script>
 </body>
 </html>

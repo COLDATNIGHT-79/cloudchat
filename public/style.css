@@ -45,34 +45,66 @@ body {
 
 /* Chat container in room page */
 #chat {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 10;
-  background: rgba(30, 30, 30, 0.9);
-  padding: 10px;
-  border-radius: 8px;
-  transition: opacity 0.2s ease;
+  margin: 20px auto;
+  width: 90%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 #chat textarea {
-  width: 200px;
+  width: 100%;
   height: 80px;
-  padding: 5px;
+  padding: 10px;
   border-radius: 4px;
-  border: none;
+  border: 1px solid rgba(0, 150, 255, 0.3);
+  resize: none;
+  margin-bottom: 10px;
+  font-size: 1rem;
 }
 
 #chat button {
-  padding: 5px 10px;
+  width: 100%;
+  padding: 10px;
   border-radius: 4px;
-  border: none;
   background-color: #007bff;
   color: #fff;
+  font-size: 1rem;
+  border: none;
   cursor: pointer;
 }
 #chat button:hover {
   background-color: #0056b3;
+}
+
+#messageLog {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  width: 300px;
+  height: 90vh;
+  background: rgba(255, 255, 255, 0.7);
+  color: #fff;
+  padding: 10px;
+  overflow-y: auto; /* Enables vertical scrolling */
+  border-radius: 10px;
+  z-index: 100;
+}
+
+.logMessage {
+  margin-bottom: 10px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+
+.logMessage span.colorIndicator {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  border-radius: 3px;
 }
 
 #roomIdDisplay {
@@ -96,4 +128,51 @@ canvas {
   justify-content: center;
   border-radius: 8px;
   border: 1px solid #444;
+}
+
+/* Message Drawer and Toggle Button */
+#messageDrawer {
+  position: fixed;
+  top: 0;
+  right: -320px; /* Hidden off-screen initially */
+  width: 300px;
+  height: 100vh;
+  background: rgba(30, 30, 30, 0.95);
+  color: #fff;
+  padding: 20px;
+  overflow-y: auto;
+  transition: right 0.3s ease;
+  z-index: 200;
+}
+
+#messageDrawer.open {
+  right: 0;
+}
+
+.drawer-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 210;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+/* Responsive canvas container for mobile */
+.canvas-container {
+  margin: 20px auto;
+  max-width: 800px;
+  width: 90%;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
 }

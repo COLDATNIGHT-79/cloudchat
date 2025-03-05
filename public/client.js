@@ -203,14 +203,7 @@ function createBlock(msg) {
 
 // --- Socket.IO message events ---
 
-// When loading the room, load any pre‑existing messages.
-socket.on('loadMessages', (messages) => {
- messages.forEach(msg => {
-  const blockBody = createBlock(msg);
-  blocks[msg._id] = blockBody;
-  World.add(world, blockBody);
- });
-});
+
 
 // When we receive artifact seed
 socket.on('artifactSeed', (data) => {
@@ -774,6 +767,53 @@ let playerIndex = 0; // Will be set when joining room
 // Modify the joinRoom handler - Player list update moved to playerList event
 
 // Modify sendMessage function to use player's spawn position
+// Helper function to add a message to the side log
+function addMessageToLog(msg) {
+  const log = document.getElementById('messageLog');
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'logMessage';
+  // Use the timestamp if available, or fallback to current time
+  const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+
+  // Create a color indicator using the message's gradient colors
+  const colorIndicator = document.createElement('span');
+  colorIndicator.className = 'colorIndicator';
+  colorIndicator.style.background = `linear-gradient(45deg, ${msg.color1}, ${msg.color2})`;
+
+  messageDiv.innerHTML = `<strong>${time}</strong> - ${msg.text}`;
+  messageDiv.prepend(colorIndicator);
+  log.appendChild(messageDiv);
+  // Scroll to the bottom so the latest message is visible
+  log.scrollTop = log.scrollHeight;
+}
+
+// When loading existing messages from the server, add them to the log as well as the canvas
+socket.on('loadMessages', (messages) => {
+  messages.forEach(msg => {
+    const blockBody = createBlock(msg);
+    blocks[msg._id] = blockBody;
+    World.add(world, blockBody);
+    // Add each loaded message to the log
+    addMessageToLog(msg);
+  });
+});
+
+// When a new message is received, update the canvas and add to the log
+socket.on('newMessage', (msg) => {
+  // Lower opacity only for messages from the same user (existing code)
+  for (let id in blocks) {
+    let block = blocks[id];
+    if (block.userId === msg.userId) { 
+      block.targetOpacity = Math.max(0, block.targetOpacity - 10);
+    }
+  }
+  const blockBody = createBlock(msg);
+  blocks[msg._id] = blockBody;
+  World.add(world, blockBody);
+  // Add the new message to the side log
+  addMessageToLog(msg);
+});
+
 function sendMessage() {
  const input = document.getElementById('messageInput');
  const text = input.value.trim();
