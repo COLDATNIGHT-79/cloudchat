@@ -171,16 +171,28 @@ io.on('connection', (socket) => {
 
     socket.on('userInput', (data) => {
         const room = data.room;
-        if (rooms[room] && rooms[room].messages[data.messageId]) {
-            const message = rooms[room].messages[data.messageId];
-            // Only allow a client to manipulate its own block:
-            if (message.sessionId === socket.id) {
-                socket.to(data.room).emit('userInput', data);
-            } else {
-                console.log(`User ${socket.id} tried to manipulate message ${data.messageId} they don't own.`);
-            }
+        if (!rooms[room] || !rooms[room].messages[data.messageId]) return;
+      
+        const message = rooms[room].messages[data.messageId];
+      
+        // Only let the true owner manipulate the block
+        if (message.userId !== data.userId) {
+          console.log(`User ${socket.id} tried to manipulate message ${data.messageId} they don't own.`);
+          return;
         }
-    });
+      
+        // Update position in server memory so all devices stay in sync
+        message.x = data.x;
+        message.y = data.y;
+      
+        // Attach which socket sent the event so that socket can ignore its own broadcast
+        data.senderSocket = socket.id;
+      
+        // Broadcast to all other sockets in the room
+        socket.to(room).emit('userInput', data);
+      });
+      
+    
     
 
     socket.on('disconnect', () => {

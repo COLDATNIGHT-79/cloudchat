@@ -266,23 +266,21 @@ socket.on('removeMessage', (data) => {
 
 // When another user sends input (drag, throw, etc.)
 socket.on('userInput', (data) => {
+  // Ignore the update if it came from the same socket (i.e. from this device)
+  if (data.senderSocket === socket.id) return;
+
   if (data.type === 'drag' && blocks[data.messageId]) {
     let block = blocks[data.messageId];
-    // Only process remote updates (ignore if this client is the owner)
-    if (block.userId === data.userId && data.userId !== userId) {
-      // Set a target position for smooth interpolation
-      block.targetPosition = { x: data.x, y: data.y };
-    }
+    // Smoothly update the block's position
+    block.targetPosition = { x: data.x, y: data.y };
   } else if (data.type === 'throw' && blocks[data.messageId]) {
     let block = blocks[data.messageId];
-    if (block.userId === data.userId && data.userId !== userId) {
-      // For throw events, update velocity immediately
-      Body.setVelocity(block, { x: data.vx, y: data.vy });
-      // Clear any target position since the throw takes effect immediately
-      delete block.targetPosition;
-    }
+    // Immediately update the block's velocity for a throw event
+    Body.setVelocity(block, { x: data.vx, y: data.vy });
+    delete block.targetPosition;
   }
 });
+
 
 // Background ripple/impact effect system
 const backgroundEffects = [];
@@ -683,24 +681,39 @@ let velocities = [];
 
 // Listen for mouse down events on blocks
 Events.on(mouseConstraint, 'startdrag', function (event) {
- if (event.body && event.body.messageId) {
-  // Only allow manipulation of your own blocks
-  if (event.body.userId === userId) {
-   activeBlock = event.body;
-   velocities = [];
-   lastMousePos = { x: mouse.position.x, y: mouse.position.y };
+  if (event.body && event.body.messageId) {
+    // If the block doesn't belong to this user, forcibly un-assign it
+    if (event.body.userId !== userId) {
+      mouseConstraint.body = null; 
+      return;
+    }
 
-   // Send drag start to others
-   socket.emit('userInput', {
-    type: 'drag',
-    room: roomId,
-    messageId: activeBlock.messageId,
-    userId: userId,
-    x: activeBlock.position.x,
-    y: activeBlock.position.y
-   });
+    // Otherwise, proceed as normal
+    activeBlock = event.body;
+    velocities = [];
+    lastMousePos = { x: mouse.position.x, y: mouse.position.y };
+
+    // Optionally let server know you started a drag (not always needed, 
+    // but included for consistency)
+    socket.on('userInput', (data) => {
+  // Ignore if this update came from the same socket that sent it
+  if (data.senderSocket === socket.id) return;
+
+  // If the block exists locally
+  const block = blocks[data.messageId];
+  if (!block) return;
+
+  if (data.type === 'drag') {
+    // Gently move the block to new position
+    block.targetPosition = { x: data.x, y: data.y };
+  } else if (data.type === 'throw') {
+    // For a "throw", set velocity directly
+    Body.setVelocity(block, { x: data.vx, y: data.vy });
+    delete block.targetPosition;
   }
- }
+});
+
+  }
 });
 
 // Track mouse movement for velocity calculation
