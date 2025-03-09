@@ -175,7 +175,7 @@ canvas {
     width: 100% !important;
     height: auto !important;
   }
-  .chat-history-button {
+  chat-history-button {
     position: absolute;
     right: 10px;  /* Keep it aligned to the right */
     bottom: 80px; /* Move it lower, adjust as needed */
